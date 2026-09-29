@@ -234,7 +234,7 @@ function StatusView({ state, onResume, reload }: { state: AgentState; onResume: 
   );
 }
 
-export function ApplicationPage({ edit = false }: { edit?: boolean }) {
+export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean }) {
   const navigate = useNavigate();
   const toast = useToast();
   const { me } = useAuth();
@@ -268,6 +268,8 @@ export function ApplicationPage({ edit = false }: { edit?: boolean }) {
 
   const state = load.data;
   const { latest } = state;
+  // /helper-profile(헤더 '프로필 수정')로 들어와도 승인된 프로필이 없으면 수정이 아니라 신규 신청 흐름이다.
+  const edit = editRoute && !!state.approved;
   const inForm = started || edit || latest?.status === 'draft';
 
   if (!inForm && latest && latest.status !== 'draft') return <StatusView state={state} reload={reload} onResume={() => setStarted(true)} />;

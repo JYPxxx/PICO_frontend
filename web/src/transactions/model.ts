@@ -69,7 +69,8 @@ export function toRequest(raw: Raw): TxRequest {
     agentId: n('agentUserId', 'agentId', 'agent.userId', 'agent.agentId', 'agent.id'),
     requesterName: s('requesterNickname', 'requesterName', 'requester.nickname') || '이용자',
     agentName: s('agentActivityName', 'agentName', 'agentNickname', 'agent.activityName', 'agent.nickname') || '도우미',
-    targetName: s('targetName'),
+    // 서버는 이용자가 입력한 공연명을 submittedTargetName으로 준다(요청·상세·목록 공통).
+    targetName: s('submittedTargetName', 'targetName'),
     serviceCategory: s('serviceCategory'),
     applicationOpenDate: s('applicationOpenDate'),
     applicationOpenTime: s('applicationOpenTime').slice(0, 5),
