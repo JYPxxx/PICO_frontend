@@ -52,6 +52,8 @@ export interface TxRequest {
   agentResult?: RequestResult;
   agentResultNote: string;
   adminResolutionNote: string;
+  /** 운영팀이 '실패 · 시도 미확인'으로 종결: 착수비 미지급, 이용자가 착수비·성공보수 환불 */
+  upfrontForfeited: boolean;
   agentOutcome: string;
   requesterResult?: RequestResult;
   requesterResultNote: string;
@@ -99,6 +101,7 @@ export function toRequest(raw: Raw): TxRequest {
     agentResultNote: s('agentResultNote', 'agentNote', 'result.agentNote'),
     // 운영팀이 분쟁·무응답 결과를 확정했을 때만 온다(이용자 동의로 완료되면 비어 있음).
     adminResolutionNote: s('adminResolutionNote'),
+    upfrontForfeited: pick(raw, 'upfrontForfeited') === true || num(pick(raw, 'upfrontForfeited')) === 1,
     agentOutcome: s('agentActualOutcomeDescription', 'actualOutcomeDescription', 'result.actualOutcomeDescription'),
     requesterResult: (s('requesterResult', 'requesterReportedResult', 'result.requesterResult') || undefined) as RequestResult | undefined,
     requesterResultNote: s('requesterResultNote', 'requesterNote', 'result.requesterNote'),

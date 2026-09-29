@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
@@ -13,7 +13,7 @@ import { PageTitle } from '../ui/PageTitle';
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
+type Tab = 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'resolved' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
   ['files', '증빙 파일 검토'],
@@ -21,6 +21,7 @@ const tabs: [Tab, string][] = [
   ['attempts', '시도 증빙 대리 승인'],
   ['settlements', '부분성공 정산'],
   ['requests', '결과 확인·만료'],
+  ['resolved', '결과 확정 이력'],
   ['payments', '결제 확인'],
   ['reports', '신고'],
   ['reviews', '후기'],
@@ -497,75 +498,42 @@ function SettlementsTab() {
 // ── 분쟁 확정·요청 만료 ─────────────────────────────────────
 // ── 결과 분쟁·이용자 무응답 ─────────────────────────────────
 const resultLabels: Record<string, string> = { SUCCESS: '성공', PARTIAL: '부분 성공', FAILURE: '실패' };
-function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
-  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })));
+const resultLabel = (row: unknown) => (pick(row, 'upfrontForfeited') === true ? '실패 · 시도 미확인(착수비 미지급)' : resultLabels[s(row, 'finalResult')] ?? s(row, 'finalResult'));
+
+/** 요청 하나의 결과·시도 증빙과 양쪽 소명. allowAsk면 추가 자료 요청 폼을 보인다(분쟁 중일 때만). */
+function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAsk: boolean; onClose: () => void; onAsked?: () => void }) {
   const { pending, run } = useAction();
-  const [shown, setShown] = useState<{ id: number; disputed: boolean; rows: [string, Raw][]; threads: [string, Raw[]][] } | null>(null);
+  const [shown, setShown] = useState<{ rows: [string, Raw][]; threads: [string, Raw[]][] } | null>(null);
   const [ask, setAsk] = useState({ party: 'REQUESTER', body: '' });
-  const loadShown = async (id: number, disputed: boolean) => {
+  const loadShown = useCallback(async () => {
     const [results, attempts, threads] = await Promise.all([
       unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/result/evidence', { params: { path: { requestId: id } } })),
       unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })),
       unwrap<Raw>(api.GET('/api/admin/requests/{requestId}/dispute/messages', { params: { path: { requestId: id } } })),
     ]);
     setShown({
-      id,
-      disputed,
       rows: [...list(results).map((e) => ['결과 증빙', e] as [string, Raw]), ...list(attempts).map((e) => ['시도 증빙', e] as [string, Raw])],
       threads: [
         ['이용자', list(pick(threads, 'requester'))],
         ['도우미', list(pick(threads, 'agent'))],
       ],
     });
-  };
-  const showEvidence = (id: number, disputed: boolean) => run(() => loadShown(id, disputed));
-  const sendQuestion = (id: number) =>
+  }, [id]);
+  useEffect(() => {
+    void run(loadShown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadShown]);
+  const sendQuestion = () =>
     run(async () => {
       await unwrap(api.POST('/api/admin/requests/{requestId}/dispute/questions', { params: { path: { requestId: id } }, body: { party: ask.party, body: ask.body.trim() } }));
       setAsk({ ...ask, body: '' });
-      await loadShown(id, true);
-      reload();
+      await loadShown();
+      onAsked?.();
     }, '추가 자료를 요청했어요. 상대에게 알림이 가고 48시간 답변 기한이 붙어요.');
+  if (!shown) return null;
+  const disputed = allowAsk;
   return (
-    <>
-      <ListBlock
-        title="결과 확인이 필요한 요청"
-        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청이에요. 증빙을 보고 아래에서 결과를 확정해요."
-        load={load}
-        reload={reload}
-        empty="확인할 요청이 없어요."
-      >
-        {(rows) =>
-          rows.map((row) => {
-            const id = n(row, 'id', 'requestId')!;
-            const overdue = s(row, 'reviewReason') === 'CONFIRMATION_OVERDUE';
-            return (
-              <Item
-                key={id}
-                raw={row}
-                title={`#${id} ${s(row, 'submittedTargetName', 'targetName')} · ${overdue ? '이용자 24시간 무응답' : '이의 제기'}`}
-                rows={[
-                  ['도우미 결과', `${resultLabels[s(row, 'agentResult')] ?? s(row, 'agentResult')} · ${s(row, 'agentResultNote')}`],
-                  ['실제 확보 내용', s(row, 'actualOutcomeDescription')],
-                  ['결과 등록 시각', utcToLocal(s(row, 'agentResultSubmittedAt'))],
-                  ['이의 사유', s(row, 'disputeNote')],
-                  ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
-                  ['소명', [`${n(row, 'statementCount') ?? 0}건`, pick(row, 'awaitingRequesterReply') === true && '이용자 답변 대기', pick(row, 'awaitingAgentReply') === true && '도우미 답변 대기'].filter(Boolean).join(' · ')],
-                ]}
-              >
-                <button type="button" className="btn secondary" disabled={pending} onClick={() => showEvidence(id, !overdue)}>
-                  증빙·소명 보기
-                </button>
-                <button type="button" className="btn primary" onClick={() => onPick(id)}>
-                  결과 확정
-                </button>
-              </Item>
-            );
-          })
-        }
-      </ListBlock>
-      {shown && (
-        <Modal title={`요청 #${shown.id} 증빙·소명`} onClose={() => setShown(null)}>
+        <Modal title={`요청 #${id} 증빙·소명`} onClose={onClose}>
           {shown.rows.length === 0 && <p className="prose">올라온 증빙이 없어요. 이의 제기 건이면 도우미가 결과 증빙을 추가할 수 있어요.</p>}
           <div className="tx-file-list">
             {shown.rows.map(([kind, e], i) => {
@@ -615,12 +583,12 @@ function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
               </div>
             </section>
           ))}
-          {shown.disputed && (
+          {disputed && (
             <form
               noValidate
               onSubmit={(e) => {
                 e.preventDefault();
-                if (ask.body.trim()) void sendQuestion(shown.id);
+                if (ask.body.trim()) void sendQuestion();
               }}
             >
               <h3>추가 자료 요청</h3>
@@ -640,7 +608,55 @@ function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
             </form>
           )}
         </Modal>
-      )}
+  );
+}
+
+function ResultReviewList({ onPick, version }: { onPick: (requestId: number) => void; version: number }) {
+  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })));
+  useEffect(() => {
+    if (version) reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
+  const [shown, setShown] = useState<{ id: number; disputed: boolean } | null>(null);
+  return (
+    <>
+      <ListBlock
+        title="결과 확인이 필요한 요청"
+        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청이에요. 증빙을 보고 아래에서 결과를 확정해요."
+        load={load}
+        reload={reload}
+        empty="확인할 요청이 없어요."
+      >
+        {(rows) =>
+          rows.map((row) => {
+            const id = n(row, 'id', 'requestId')!;
+            const overdue = s(row, 'reviewReason') === 'CONFIRMATION_OVERDUE';
+            return (
+              <Item
+                key={id}
+                raw={row}
+                title={`#${id} ${s(row, 'submittedTargetName', 'targetName')} · ${overdue ? '이용자 24시간 무응답' : '이의 제기'}`}
+                rows={[
+                  ['도우미 결과', `${resultLabels[s(row, 'agentResult')] ?? s(row, 'agentResult')} · ${s(row, 'agentResultNote')}`],
+                  ['실제 확보 내용', s(row, 'actualOutcomeDescription')],
+                  ['결과 등록 시각', utcToLocal(s(row, 'agentResultSubmittedAt'))],
+                  ['이의 사유', s(row, 'disputeNote')],
+                  ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
+                  ['소명', [`${n(row, 'statementCount') ?? 0}건`, pick(row, 'awaitingRequesterReply') === true && '이용자 답변 대기', pick(row, 'awaitingAgentReply') === true && '도우미 답변 대기'].filter(Boolean).join(' · ')],
+                ]}
+              >
+                <button type="button" className="btn secondary" onClick={() => setShown({ id, disputed: !overdue })}>
+                  증빙·소명 보기
+                </button>
+                <button type="button" className="btn primary" onClick={() => onPick(id)}>
+                  결과 확정
+                </button>
+              </Item>
+            );
+          })
+        }
+      </ListBlock>
+      {shown && <EvidenceModal id={shown.id} allowAsk={shown.disputed} onClose={() => setShown(null)} onAsked={reload} />}
     </>
   );
 }
@@ -648,27 +664,35 @@ function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
 function RequestsTab() {
   const { pending, run } = useAction();
   const [requestId, setRequestId] = useState('');
-  const [result, setResult] = useState<components['schemas']['RequestResult']>('SUCCESS');
+  // UNVERIFIED = 실패 · 시도 미확인: FAILURE + attemptUnverified(착수비 미지급, 이용자 착수비·성공보수 환불)
+  const [result, setResult] = useState<components['schemas']['RequestResult'] | 'UNVERIFIED'>('SUCCESS');
   const [note, setNote] = useState('');
-  const [outcome, setOutcome] = useState('');
+  const [version, setVersion] = useState(0);
   const [expired, setExpired] = useState<number | null>(null);
 
   async function resolve(e: FormEvent) {
     e.preventDefault();
     if (!Number(requestId) || !note.trim()) return;
     const ok = await run(
-      () => unwrap(api.POST('/api/admin/requests/{requestId}/resolve', { params: { path: { requestId: Number(requestId) } }, body: { result, note: note.trim(), actualOutcomeDescription: outcome.trim() || undefined } })),
-      '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.',
+      () =>
+        unwrap(
+          api.POST('/api/admin/requests/{requestId}/resolve', {
+            params: { path: { requestId: Number(requestId) } },
+            body: { result: result === 'UNVERIFIED' ? 'FAILURE' : result, note: note.trim(), attemptUnverified: result === 'UNVERIFIED' },
+          }),
+        ),
+      result === 'UNVERIFIED' ? '시도 미확인으로 종결했어요. 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요.' : '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.',
     );
     if (ok) {
       setNote('');
-      setOutcome('');
+      setVersion((v) => v + 1);
     }
   }
 
   return (
     <>
       <ResultReviewList
+        version={version}
         onPick={(id) => {
           setRequestId(String(id));
           document.getElementById('admin-resolve-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -686,15 +710,16 @@ function RequestsTab() {
               <select value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
                 <option value="SUCCESS">성공</option>
                 <option value="PARTIAL">부분 성공</option>
-                <option value="FAILURE">실패</option>
+                <option value="FAILURE">실패 (착수비는 도우미 몫)</option>
+                <option value="UNVERIFIED">실패 · 시도 미확인 (착수비 미지급)</option>
               </select>
             </Field>
           </div>
+          {result === 'UNVERIFIED' && (
+            <Notice tone="error">시도 증빙이 미흡하거나 예매를 시도하지 않은 것으로 판단될 때 써요. 착수비를 도우미에게 지급하지 않고, 이용자는 착수비·성공보수를 환불받아요(이용료 제외). 착수비가 이미 지급됐으면 확정할 수 없어요.</Notice>
+          )}
           <Field label="확정 사유" required>
             <textarea rows={3} required value={note} onChange={(e) => setNote(e.target.value)} />
-          </Field>
-          <Field label="실제 결과">
-            <input value={outcome} onChange={(e) => setOutcome(e.target.value)} />
           </Field>
           {Number(requestId) > 0 && (
             <p className="record-note">
@@ -719,6 +744,43 @@ function RequestsTab() {
         </button>
         {expired !== null && <Notice tone="success">{expired}건을 만료 처리했어요.</Notice>}
       </section>
+    </>
+  );
+}
+
+// ── 결과 확정 이력 ─────────────────────────────────────────────
+function ResolvedTab() {
+  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/resolved', { params: { query: { page: 0, size: 100 } } })));
+  const [shown, setShown] = useState<number | null>(null);
+  return (
+    <>
+      <ListBlock title="운영팀이 확정한 결과" desc="이의 제기나 이용자 무응답으로 운영팀이 최종 결과를 정한 요청이에요. 최근 순이에요." load={load} reload={reload} empty="아직 확정한 요청이 없어요.">
+        {(rows) =>
+          rows.map((row) => {
+            const id = n(row, 'id')!;
+            return (
+              <Item
+                key={id}
+                raw={row}
+                title={`#${id} ${s(row, 'submittedTargetName')} · ${resultLabel(row)}`}
+                rows={[
+                  ['확정 계기', s(row, 'reviewReason') === 'DISPUTED' ? '이용자 이의 제기' : '이용자 24시간 무응답'],
+                  ['도우미 결과', resultLabels[s(row, 'agentResult')] ?? s(row, 'agentResult')],
+                  ['이의 사유', s(row, 'disputeNote')],
+                  ['확정 사유', s(row, 'resolutionNote')],
+                  ['확정한 관리자', `${s(row, 'resolvedByName')} (#${n(row, 'resolvedByUserId') ?? ''})`],
+                  ['확정 시각', utcToLocal(s(row, 'completedAt'))],
+                ]}
+              >
+                <button type="button" className="btn secondary" onClick={() => setShown(id)}>
+                  증빙·소명 보기
+                </button>
+              </Item>
+            );
+          })
+        }
+      </ListBlock>
+      {shown !== null && <EvidenceModal id={shown} allowAsk={false} onClose={() => setShown(null)} />}
     </>
   );
 }
@@ -1226,6 +1288,7 @@ export function AdminPage() {
       {tab === 'attempts' && <AttemptsTab />}
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}
+      {tab === 'resolved' && <ResolvedTab />}
       {tab === 'payments' && <PaymentsTab />}
       {tab === 'reports' && <ReportsTab />}
       {tab === 'reviews' && <ReviewsTab />}

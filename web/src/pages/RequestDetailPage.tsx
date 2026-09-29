@@ -568,6 +568,11 @@ export function RequestDetailPage() {
 
           {r.adminResolutionNote && (
             <TxCard title="운영팀 확정 사유">
+              {r.upfrontForfeited && (
+                <Notice tone="error">
+                  {agent ? '운영팀이 예매 시도를 확인하지 못해 실패로 종결했어요. 착수비는 지급되지 않아요.' : '운영팀이 예매 시도를 확인하지 못해 실패로 종결했어요. 안전거래라면 착수비와 성공보수를 환불받을 수 있어요.'}
+                </Notice>
+              )}
               <p className="prose" style={{ whiteSpace: 'pre-wrap' }}>{r.adminResolutionNote}</p>
             </TxCard>
           )}
