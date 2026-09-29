@@ -412,7 +412,7 @@ export function RequestDetailPage() {
       case 'in_progress':
         return agent ? (
           <>
-            {go(`/requests/${r.id}/result`, d.resultEvidences.length ? '결과 증빙·결과 제출' : '결과 증빙 올리기')}
+            {go(`/requests/${r.id}/result`, '결과 등록')}
             {(!latestEvidence || latestEvidence.status === 'REJECTED') && go(`/requests/${r.id}/evidence`, latestEvidence ? '시도 증빙 다시 올리기' : '시도 증빙 올리기', 'secondary')}
           </>
         ) : (
