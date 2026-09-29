@@ -1,0 +1,250 @@
+import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAppState } from '../AppState';
+import { useAgentSearch } from '../discovery/agent';
+import { AgentCard } from '../discovery/AgentCard';
+import { FilterModal, QuickFilter } from '../discovery/FilterControls';
+import { emptyFilters, filterLabels, removeFilter, sortOptions, type Filters, type Sort } from '../discovery/filters';
+import { Icon } from '../ui/Icon';
+import { Modal } from '../ui/Modal';
+import { useToast } from '../ui/Toast';
+
+// 프로토타입 discovery.js의 home(). 검색·필터·정렬은 GET /api/agents가 처리한다.
+const popular = ['태연 콘서트', '뮤지컬 프리미어', '데이식스 콘서트'];
+const quickFilters = [
+  ['price', '가격'],
+  ['date', '예매 날짜'],
+  ['rating', '별점'],
+  ['success', '성공률'],
+] as const;
+
+export function HomePage() {
+  const [state, setState] = useAppState();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [helperAlert, setHelperAlert] = useState(false);
+  const [reload, setReload] = useState(0);
+
+  const { query, sort, filters } = state;
+  const result = useAgentSearch(query, sort, filters, reload);
+  const list = result.status === 'done' ? result.items : [];
+  const total = result.status === 'done' ? result.total : 0;
+  const labels = filterLabels(filters);
+  const search = !!query || labels.length > 0;
+  const setFilters = (f: Filters) => setState((s) => ({ ...s, filters: f }));
+  const reset = () => setState((s) => ({ ...s, query: '', filters: emptyFilters() }));
+
+  function saveAlert(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const enabled = (e.currentTarget.elements.namedItem('enabled') as HTMLInputElement).checked;
+    setHelperAlert(enabled);
+    setAlertOpen(false);
+    toast(enabled ? '도우미 알림 설정을 저장했어요.' : '도우미 알림을 껐어요.');
+  }
+
+  return (
+    <>
+      <section className="page-heading home-heading pc-hero">
+        <div>
+          <h1>
+            좋아하는 공연에,
+            <br />한 걸음 <em>더 가까이.</em>
+          </h1>
+          <p>믿을 수 있는 티켓팅 도우미와 설레는 순간을 함께 준비해요.</p>
+        </div>
+        <div className="ticket-outline" aria-hidden="true">
+          <img src="/home-ticket.svg" alt="" width="420" height="240" />
+        </div>
+      </section>
+      <div className="pc-search-row">
+        <div className="search-container">
+          <Icon name="search" size={23} />
+          <input
+            id="search"
+            type="search"
+            value={query}
+            placeholder="공연명, 도우미 이름, 예매처를 검색해 보세요"
+            aria-label="도우미 검색"
+            onChange={(e) => setState((s) => ({ ...s, query: e.target.value }))}
+          />
+          <span className="search-hint">원하는 공연이 있나요?</span>
+        </div>
+        <div className="popular-shows">
+          <span>인기 검색</span>
+          {popular.map((p) => (
+            <button key={p} onClick={() => setState((s) => ({ ...s, query: p }))}>
+              {p}
+            </button>
+          ))}
+          <small>예시</small>
+        </div>
+      </div>
+      <div className="pc-discovery-header">
+        <div>
+          <span className="tiny-label">{search ? '나에게 맞는 조건으로' : '함께할 순간을 기다리는'}</span>
+          <h2>{search ? '도우미 검색 결과' : '이번 주, 주목할 도우미'}</h2>
+          <p>{search ? `${total}명의 도우미를 찾았어요` : '꼼꼼한 안내와 좋은 후기로 눈길을 끄는 도우미예요.'}</p>
+        </div>
+      </div>
+      <div className="pc-filterbar">
+        <div className="filter-chips">
+          {quickFilters.map(([key, label]) => (
+            <QuickFilter key={key} filterKey={key} label={label} selected={labels.some(([k]) => k === key)} filters={filters} onApply={setFilters} />
+          ))}
+        </div>
+        <button className="filter-button" aria-label="상세 필터" onClick={() => setFilterOpen(true)}>
+          <Icon name="filter" size={18} /> 필터
+        </button>
+      </div>
+      <div className="pc-result-toolbar">
+        <p>
+          {search ? '조건에 맞는 도우미' : '지금 제일 핫한!'} <strong>{total}</strong> 명
+        </p>
+        <label className="sort-label">
+          <select id="sort" aria-label="도우미 정렬" value={sort} onChange={(e) => setState((s) => ({ ...s, sort: e.target.value as Sort }))}>
+            {sortOptions.map(([v, t]) => (
+              <option key={v} value={v}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {labels.length > 0 && (
+        <div className="pc-applied-filters">
+          {labels.map(([k, label]) => (
+            <button key={k} aria-label={`${label} 필터 삭제`} onClick={() => setFilters(removeFilter(filters, k))}>
+              {label} <Icon name="close" size={13} />
+            </button>
+          ))}
+          <button onClick={reset}>전체 초기화</button>
+        </div>
+      )}
+      <div className="home-layout pc-home-layout">
+        <section>
+          <div id="agent-results" className="agent-list" aria-live="polite">
+            {result.status === 'loading' ? (
+              <div className="empty" role="status">
+                <p>도우미를 불러오는 중이에요.</p>
+              </div>
+            ) : result.status === 'error' ? (
+              <div className="empty">
+                <Icon name="info" size={40} />
+                <h3>도우미를 불러오지 못했어요</h3>
+                <p>{result.message}</p>
+                <button type="button" className="btn primary" onClick={() => setReload((n) => n + 1)}>
+                  다시 시도
+                </button>
+              </div>
+            ) : list.length ? (
+              list.map((a) => <AgentCard key={a.id} agent={a} />)
+            ) : (
+              <div className="empty">
+                <Icon name="search" size={40} />
+                <h3>조건에 맞는 도우미가 없어요</h3>
+                <p>검색어나 필터를 바꿔 다시 찾아보세요.</p>
+                <button type="button" className="btn primary" onClick={reset}>
+                  검색과 필터 초기화
+                </button>
+              </div>
+            )}
+          </div>
+          <section className="home-alert-card" aria-labelledby="home-alert-title">
+            <h3 id="home-alert-title">원하는 도우미가 없나요?</h3>
+            <p>조건에 맞는 도우미가 등록되면 알려드릴게요.</p>
+            <button className="btn secondary" onClick={() => setAlertOpen(true)}>
+              {helperAlert ? '알림 설정' : '알림 받기'}
+            </button>
+          </section>
+        </section>
+        <aside className="home-sidebar">
+          <div className="guide-card">
+            <div className="guide-icon">
+              <Icon name="shield" size={26} />
+            </div>
+            <span className="tiny-label">처음이어도 괜찮아요</span>
+            <h2>
+              찾는 순간부터
+              <br />
+              결과를 확인할 때까지.
+            </h2>
+            <ol className="guide-steps">
+              <li>
+                <b>1</b>
+                <div>
+                  <strong>나에게 맞는 도우미 찾기</strong>
+                  <p>프로필과 거래 후기를 살펴보세요.</p>
+                </div>
+              </li>
+              <li>
+                <b>2</b>
+                <div>
+                  <strong>원하는 조건으로 직접 요청</strong>
+                  <p>공연, 좌석과 희망 수고비를 알려주세요.</p>
+                </div>
+              </li>
+              <li>
+                <b>3</b>
+                <div>
+                  <strong>최종 조건 확인 후 안전결제</strong>
+                  <p>도우미가 제안한 조건을 확인해요.</p>
+                </div>
+              </li>
+            </ol>
+            <button className="guide-link" onClick={() => navigate('/guide')}>
+              이용 방법 자세히 보기 <Icon name="arrow" size={17} />
+            </button>
+          </div>
+          <div className="trust-note">
+            <Icon name="shield" size={22} />
+            <div>
+              <strong>확인할 수 있는 신뢰</strong>
+              <p>
+                인증 정보와 플랫폼 거래 후기를
+                <br />
+                함께 확인하고 선택하세요.
+              </p>
+            </div>
+          </div>
+          <div className="help-card">
+            <span>궁금한 점이 있나요?</span>
+            <button onClick={() => navigate('/help')}>
+              고객센터 <Icon name="chevron" size={14} />
+            </button>
+          </div>
+        </aside>
+      </div>
+      {filterOpen && (
+        <FilterModal
+          filters={filters}
+          query={query}
+          sort={sort}
+          onClose={() => setFilterOpen(false)}
+          onApply={(f) => {
+            setFilters(f);
+            setFilterOpen(false);
+          }}
+        />
+      )}
+      {alertOpen && (
+        <Modal title="도우미 알림 설정" onClose={() => setAlertOpen(false)}>
+          <form id="helper-alert-form" onSubmit={saveAlert}>
+            <p className="prose">현재 검색어와 필터 조건으로 새 도우미 알림을 설정해요.</p>
+            <label className="check-row" style={{ margin: '24px 0' }}>
+              <input type="checkbox" name="enabled" defaultChecked={helperAlert} />
+              조건에 맞는 도우미 알림 받기
+            </label>
+            <p className="record-note">체험용 설정이며 실제 알림은 발송되지 않아요.</p>
+            <div className="modal-actions">
+              <button type="submit" className="btn primary">
+                저장하기
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </>
+  );
+}

@@ -1,0 +1,1405 @@
+{
+  "title": "티켓팅 도우미 매칭 · PC 화면과 상태",
+  "revision": "pc-web-2026-09-15",
+  "scope": "PC 웹앱 개선. 모바일 및 기존 Figma 이관본은 이번 범위에서 제외합니다.",
+  "screenCount": 77,
+  "frameCount": 77,
+  "devices": [
+    {
+      "id": "desktop",
+      "name": "데스크톱",
+      "width": 1440,
+      "height": 900,
+      "contentMaxWidth": 1080
+    }
+  ],
+  "previewData": "각 screen 링크는 임시 예시 데이터로 시작합니다. 이후 화면 이동과 역할 전환은 같은 상태를 사용하며, 미리보기 상태는 저장하지 않습니다.",
+  "screens": [
+    {
+      "id": "B1-home",
+      "name": "이용자 · 도우미 찾기",
+      "route": "home",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 1,
+      "relativeUrl": "./index.html?screen=B1-home",
+      "fullContentUrl": "./index.html?screen=B1-home&capture=full",
+      "frames": [
+        {
+          "name": "01 · 이용자 · 도우미 찾기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B1-guest",
+      "name": "로그인 전 · 도우미 탐색",
+      "route": "home",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 2,
+      "relativeUrl": "./index.html?screen=B1-guest",
+      "fullContentUrl": "./index.html?screen=B1-guest&capture=full",
+      "frames": [
+        {
+          "name": "02 · 로그인 전 · 도우미 탐색 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B1-filter",
+      "name": "이용자 · 상세 필터",
+      "route": "home",
+      "mode": "user",
+      "selected": 1,
+      "overlay": "filters",
+      "index": 3,
+      "relativeUrl": "./index.html?screen=B1-filter",
+      "fullContentUrl": "./index.html?screen=B1-filter&capture=full",
+      "frames": [
+        {
+          "name": "03 · 이용자 · 상세 필터 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B1-search",
+      "name": "이용자 · 검색·필터 적용",
+      "route": "home",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 4,
+      "relativeUrl": "./index.html?screen=B1-search",
+      "fullContentUrl": "./index.html?screen=B1-search&capture=full",
+      "frames": [
+        {
+          "name": "04 · 이용자 · 검색·필터 적용 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B1-empty",
+      "name": "이용자 · 검색 결과 없음",
+      "route": "home",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 5,
+      "relativeUrl": "./index.html?screen=B1-empty",
+      "fullContentUrl": "./index.html?screen=B1-empty&capture=full",
+      "frames": [
+        {
+          "name": "05 · 이용자 · 검색 결과 없음 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B2-profile",
+      "name": "이용자 · 도우미 프로필",
+      "route": "profile",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 6,
+      "relativeUrl": "./index.html?screen=B2-profile",
+      "fullContentUrl": "./index.html?screen=B2-profile&capture=full",
+      "frames": [
+        {
+          "name": "06 · 이용자 · 도우미 프로필 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B2-reviews",
+      "name": "이용자 · 이용 인증 후기",
+      "route": "profile",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 7,
+      "relativeUrl": "./index.html?screen=B2-reviews",
+      "fullContentUrl": "./index.html?screen=B2-reviews&capture=full",
+      "frames": [
+        {
+          "name": "07 · 이용자 · 이용 인증 후기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B3-quote",
+      "name": "이용자 · 요청서 작성",
+      "route": "quote",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 8,
+      "relativeUrl": "./index.html?screen=B3-quote",
+      "fullContentUrl": "./index.html?screen=B3-quote&capture=full",
+      "frames": [
+        {
+          "name": "08 · 이용자 · 요청서 작성 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B3-quote-error",
+      "name": "이용자 · 요청서 입력 오류",
+      "route": "quote",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 9,
+      "relativeUrl": "./index.html?screen=B3-quote-error",
+      "fullContentUrl": "./index.html?screen=B3-quote-error&capture=full",
+      "frames": [
+        {
+          "name": "09 · 이용자 · 요청서 입력 오류 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B3-quote-other",
+      "name": "이용자 · 기타 예매처 입력",
+      "route": "quote",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 10,
+      "relativeUrl": "./index.html?screen=B3-quote-other",
+      "fullContentUrl": "./index.html?screen=B3-quote-other&capture=full",
+      "frames": [
+        {
+          "name": "10 · 이용자 · 기타 예매처 입력 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B4-complete",
+      "name": "이용자 · 요청 전송 완료",
+      "route": "requestSent",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 11,
+      "relativeUrl": "./index.html?screen=B4-complete",
+      "fullContentUrl": "./index.html?screen=B4-complete&capture=full",
+      "frames": [
+        {
+          "name": "11 · 이용자 · 요청 전송 완료 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B5-requests",
+      "name": "이용자 · 내 활동",
+      "route": "requests",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 12,
+      "relativeUrl": "./index.html?screen=B5-requests",
+      "fullContentUrl": "./index.html?screen=B5-requests&capture=full",
+      "frames": [
+        {
+          "name": "12 · 이용자 · 내 활동 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B5-progress",
+      "name": "이용자 · 내 활동 진행 중",
+      "route": "requests",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 13,
+      "relativeUrl": "./index.html?screen=B5-progress",
+      "fullContentUrl": "./index.html?screen=B5-progress&capture=full",
+      "frames": [
+        {
+          "name": "13 · 이용자 · 내 활동 진행 중 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B5-history",
+      "name": "이용자 · 내 활동 지난 내역",
+      "route": "requests",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 14,
+      "relativeUrl": "./index.html?screen=B5-history",
+      "fullContentUrl": "./index.html?screen=B5-history&capture=full",
+      "frames": [
+        {
+          "name": "14 · 이용자 · 내 활동 지난 내역 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B5-empty",
+      "name": "이용자 · 내 활동 없음",
+      "route": "requests",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 15,
+      "relativeUrl": "./index.html?screen=B5-empty",
+      "fullContentUrl": "./index.html?screen=B5-empty&capture=full",
+      "frames": [
+        {
+          "name": "15 · 이용자 · 내 활동 없음 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-pending",
+      "name": "이용자 · 도우미 응답 대기",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 16,
+      "relativeUrl": "./index.html?screen=B6-pending",
+      "fullContentUrl": "./index.html?screen=B6-pending&capture=full",
+      "frames": [
+        {
+          "name": "16 · 이용자 · 도우미 응답 대기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-edit",
+      "name": "이용자 · 요청 내용 수정",
+      "route": "quote",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 17,
+      "relativeUrl": "./index.html?screen=B6-edit",
+      "fullContentUrl": "./index.html?screen=B6-edit&capture=full",
+      "frames": [
+        {
+          "name": "17 · 이용자 · 요청 내용 수정 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-accepted",
+      "name": "이용자 · 최종 조건 준비 중",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 18,
+      "relativeUrl": "./index.html?screen=B6-accepted",
+      "fullContentUrl": "./index.html?screen=B6-accepted&capture=full",
+      "frames": [
+        {
+          "name": "18 · 이용자 · 최종 조건 준비 중 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-agreement",
+      "name": "이용자 · 최종 조건 확인",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 19,
+      "relativeUrl": "./index.html?screen=B6-agreement",
+      "fullContentUrl": "./index.html?screen=B6-agreement&capture=full",
+      "frames": [
+        {
+          "name": "19 · 이용자 · 최종 조건 확인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-revision",
+      "name": "이용자 · 조건 수정 요청",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": "tx-revision",
+      "index": 20,
+      "relativeUrl": "./index.html?screen=B6-revision",
+      "fullContentUrl": "./index.html?screen=B6-revision&capture=full",
+      "frames": [
+        {
+          "name": "20 · 이용자 · 조건 수정 요청 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-revision-wait",
+      "name": "이용자 · 새 조건 대기",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 21,
+      "relativeUrl": "./index.html?screen=B6-revision-wait",
+      "fullContentUrl": "./index.html?screen=B6-revision-wait&capture=full",
+      "frames": [
+        {
+          "name": "21 · 이용자 · 새 조건 대기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-agreed",
+      "name": "이용자 · 조건 확정·결제 대기",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 22,
+      "relativeUrl": "./index.html?screen=B6-agreed",
+      "fullContentUrl": "./index.html?screen=B6-agreed&capture=full",
+      "frames": [
+        {
+          "name": "22 · 이용자 · 조건 확정·결제 대기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-paid",
+      "name": "이용자 · 안전거래 결제 완료",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 23,
+      "relativeUrl": "./index.html?screen=B6-paid",
+      "fullContentUrl": "./index.html?screen=B6-paid&capture=full",
+      "frames": [
+        {
+          "name": "23 · 이용자 · 안전거래 결제 완료 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-result",
+      "name": "이용자 · 예매 결과 확인",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 24,
+      "relativeUrl": "./index.html?screen=B6-result",
+      "fullContentUrl": "./index.html?screen=B6-result&capture=full",
+      "frames": [
+        {
+          "name": "24 · 이용자 · 예매 결과 확인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-completed",
+      "name": "이용자 · 거래 완료",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 25,
+      "relativeUrl": "./index.html?screen=B6-completed",
+      "fullContentUrl": "./index.html?screen=B6-completed&capture=full",
+      "frames": [
+        {
+          "name": "25 · 이용자 · 거래 완료 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B8-review",
+      "name": "이용자 · 거래 인증 후기 작성",
+      "route": "review",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 26,
+      "relativeUrl": "./index.html?screen=B8-review",
+      "fullContentUrl": "./index.html?screen=B8-review&capture=full",
+      "frames": [
+        {
+          "name": "26 · 이용자 · 거래 인증 후기 작성 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-cancel-confirm",
+      "name": "이용자 · 요청 취소 확인",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": "tx-cancel",
+      "index": 27,
+      "relativeUrl": "./index.html?screen=B6-cancel-confirm",
+      "fullContentUrl": "./index.html?screen=B6-cancel-confirm&capture=full",
+      "frames": [
+        {
+          "name": "27 · 이용자 · 요청 취소 확인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "B6-cancelled",
+      "name": "이용자 · 취소된 요청",
+      "route": "detail",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 28,
+      "relativeUrl": "./index.html?screen=B6-cancelled",
+      "fullContentUrl": "./index.html?screen=B6-cancelled&capture=full",
+      "frames": [
+        {
+          "name": "28 · 이용자 · 취소된 요청 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C2-leads",
+      "name": "도우미 · 직접 받은 요청",
+      "route": "leads",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 29,
+      "relativeUrl": "./index.html?screen=C2-leads",
+      "fullContentUrl": "./index.html?screen=C2-leads&capture=full",
+      "frames": [
+        {
+          "name": "29 · 도우미 · 직접 받은 요청 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C2-closed",
+      "name": "도우미 · 거절·만료 요청",
+      "route": "leads",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 30,
+      "relativeUrl": "./index.html?screen=C2-closed",
+      "fullContentUrl": "./index.html?screen=C2-closed&capture=full",
+      "frames": [
+        {
+          "name": "30 · 도우미 · 거절·만료 요청 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C2-empty",
+      "name": "도우미 · 받은 요청 없음",
+      "route": "leads",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 31,
+      "relativeUrl": "./index.html?screen=C2-empty",
+      "fullContentUrl": "./index.html?screen=C2-empty&capture=full",
+      "frames": [
+        {
+          "name": "31 · 도우미 · 받은 요청 없음 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C3-lead",
+      "name": "도우미 · 직접 받은 요청 상세",
+      "route": "detail",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 32,
+      "relativeUrl": "./index.html?screen=C3-lead",
+      "fullContentUrl": "./index.html?screen=C3-lead&capture=full",
+      "frames": [
+        {
+          "name": "32 · 도우미 · 직접 받은 요청 상세 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C3-accept",
+      "name": "도우미 · 수락과 매칭권 확인",
+      "route": "detail",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": "tx-accept",
+      "index": 33,
+      "relativeUrl": "./index.html?screen=C3-accept",
+      "fullContentUrl": "./index.html?screen=C3-accept&capture=full",
+      "frames": [
+        {
+          "name": "33 · 도우미 · 수락과 매칭권 확인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C3-no-credits",
+      "name": "도우미 · 매칭권 부족",
+      "route": "detail",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": "tx-accept",
+      "index": 34,
+      "relativeUrl": "./index.html?screen=C3-no-credits",
+      "fullContentUrl": "./index.html?screen=C3-no-credits&capture=full",
+      "frames": [
+        {
+          "name": "34 · 도우미 · 매칭권 부족 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C3-decline",
+      "name": "도우미 · 요청 거절 확인",
+      "route": "detail",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": "tx-decline",
+      "index": 35,
+      "relativeUrl": "./index.html?screen=C3-decline",
+      "fullContentUrl": "./index.html?screen=C3-decline&capture=full",
+      "frames": [
+        {
+          "name": "35 · 도우미 · 요청 거절 확인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C1-matches",
+      "name": "도우미 · 매칭 관리",
+      "route": "matches",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 36,
+      "relativeUrl": "./index.html?screen=C1-matches",
+      "fullContentUrl": "./index.html?screen=C1-matches&capture=full",
+      "frames": [
+        {
+          "name": "36 · 도우미 · 매칭 관리 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "C1-history",
+      "name": "도우미 · 완료·취소 거래",
+      "route": "matches",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 37,
+      "relativeUrl": "./index.html?screen=C1-history",
+      "fullContentUrl": "./index.html?screen=C1-history&capture=full",
+      "frames": [
+        {
+          "name": "37 · 도우미 · 완료·취소 거래 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D1-final-terms",
+      "name": "도우미 · 최종 조건 작성",
+      "route": "finalTerms",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 38,
+      "relativeUrl": "./index.html?screen=D1-final-terms",
+      "fullContentUrl": "./index.html?screen=D1-final-terms&capture=full",
+      "frames": [
+        {
+          "name": "38 · 도우미 · 최종 조건 작성 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D1-final-revision",
+      "name": "도우미 · 수정 요청 반영",
+      "route": "finalTerms",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 39,
+      "relativeUrl": "./index.html?screen=D1-final-revision",
+      "fullContentUrl": "./index.html?screen=D1-final-revision&capture=full",
+      "frames": [
+        {
+          "name": "39 · 도우미 · 수정 요청 반영 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D1-load-request",
+      "name": "도우미 · 요청 내용 불러오기",
+      "route": "finalTerms",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": "tx-load-request",
+      "index": 40,
+      "relativeUrl": "./index.html?screen=D1-load-request",
+      "fullContentUrl": "./index.html?screen=D1-load-request&capture=full",
+      "frames": [
+        {
+          "name": "40 · 도우미 · 요청 내용 불러오기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D1-terms-wait",
+      "name": "도우미 · 이용자 최종 확인 대기",
+      "route": "detail",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 41,
+      "relativeUrl": "./index.html?screen=D1-terms-wait",
+      "fullContentUrl": "./index.html?screen=D1-terms-wait&capture=full",
+      "frames": [
+        {
+          "name": "41 · 도우미 · 이용자 최종 확인 대기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D2-payment",
+      "name": "이용자 · 안전거래 결제",
+      "route": "payment",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 42,
+      "relativeUrl": "./index.html?screen=D2-payment",
+      "fullContentUrl": "./index.html?screen=D2-payment&capture=full",
+      "frames": [
+        {
+          "name": "42 · 이용자 · 안전거래 결제 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D2-payment-failed",
+      "name": "이용자 · 결제 실패와 재시도",
+      "route": "payment",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 43,
+      "relativeUrl": "./index.html?screen=D2-payment-failed",
+      "fullContentUrl": "./index.html?screen=D2-payment-failed&capture=full",
+      "frames": [
+        {
+          "name": "43 · 이용자 · 결제 실패와 재시도 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D2-payment-cancelled",
+      "name": "이용자 · 결제 취소",
+      "route": "payment",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 44,
+      "relativeUrl": "./index.html?screen=D2-payment-cancelled",
+      "fullContentUrl": "./index.html?screen=D2-payment-cancelled&capture=full",
+      "frames": [
+        {
+          "name": "44 · 이용자 · 결제 취소 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D3-proof",
+      "name": "도우미 · 착수 인증 첨부",
+      "route": "proof",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 45,
+      "relativeUrl": "./index.html?screen=D3-proof",
+      "fullContentUrl": "./index.html?screen=D3-proof&capture=full",
+      "frames": [
+        {
+          "name": "45 · 도우미 · 착수 인증 첨부 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D3-result",
+      "name": "도우미 · 예매 결과 등록",
+      "route": "result",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 46,
+      "relativeUrl": "./index.html?screen=D3-result",
+      "fullContentUrl": "./index.html?screen=D3-result&capture=full",
+      "frames": [
+        {
+          "name": "46 · 도우미 · 예매 결과 등록 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D3-result-failure",
+      "name": "도우미 · 실패 결과 등록",
+      "route": "result",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 47,
+      "relativeUrl": "./index.html?screen=D3-result-failure",
+      "fullContentUrl": "./index.html?screen=D3-result-failure&capture=full",
+      "frames": [
+        {
+          "name": "47 · 도우미 · 실패 결과 등록 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D4-credits",
+      "name": "도우미 · 매칭권 충전",
+      "route": "credits",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 48,
+      "relativeUrl": "./index.html?screen=D4-credits",
+      "fullContentUrl": "./index.html?screen=D4-credits&capture=full",
+      "frames": [
+        {
+          "name": "48 · 도우미 · 매칭권 충전 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D4-history",
+      "name": "도우미 · 매칭권 충전 내역",
+      "route": "paymentHistory",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 49,
+      "relativeUrl": "./index.html?screen=D4-history",
+      "fullContentUrl": "./index.html?screen=D4-history&capture=full",
+      "frames": [
+        {
+          "name": "49 · 도우미 · 매칭권 충전 내역 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "D4-payment-history",
+      "name": "이용자 · 안전거래 결제 내역",
+      "route": "paymentHistory",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 50,
+      "relativeUrl": "./index.html?screen=D4-payment-history",
+      "fullContentUrl": "./index.html?screen=D4-payment-history&capture=full",
+      "frames": [
+        {
+          "name": "50 · 이용자 · 안전거래 결제 내역 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A0-login",
+      "name": "공통 · 기존 계정 로그인",
+      "route": "login",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 51,
+      "relativeUrl": "./index.html?screen=A0-login",
+      "fullContentUrl": "./index.html?screen=A0-login&capture=full",
+      "frames": [
+        {
+          "name": "51 · 공통 · 기존 계정 로그인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A1-purpose",
+      "name": "회원가입 · 이용 목적",
+      "route": "signup",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 52,
+      "relativeUrl": "./index.html?screen=A1-purpose",
+      "fullContentUrl": "./index.html?screen=A1-purpose&capture=full",
+      "frames": [
+        {
+          "name": "52 · 회원가입 · 이용 목적 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A1-profile",
+      "name": "회원가입 · 프로필과 연락처",
+      "route": "signup",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 53,
+      "relativeUrl": "./index.html?screen=A1-profile",
+      "fullContentUrl": "./index.html?screen=A1-profile&capture=full",
+      "frames": [
+        {
+          "name": "53 · 회원가입 · 프로필과 연락처 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A1-check",
+      "name": "회원가입 · 확인하고 시작",
+      "route": "signup",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 54,
+      "relativeUrl": "./index.html?screen=A1-check",
+      "fullContentUrl": "./index.html?screen=A1-check&capture=full",
+      "frames": [
+        {
+          "name": "54 · 회원가입 · 확인하고 시작 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A1-complete",
+      "name": "회원가입 · 프로필 준비 완료",
+      "route": "signupComplete",
+      "mode": "user",
+      "selected": 1,
+      "overlay": null,
+      "index": 55,
+      "relativeUrl": "./index.html?screen=A1-complete",
+      "fullContentUrl": "./index.html?screen=A1-complete&capture=full",
+      "frames": [
+        {
+          "name": "55 · 회원가입 · 프로필 준비 완료 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-intro",
+      "name": "도우미 · 활동 소개와 신청",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 56,
+      "relativeUrl": "./index.html?screen=A2-intro",
+      "fullContentUrl": "./index.html?screen=A2-intro&capture=full",
+      "frames": [
+        {
+          "name": "56 · 도우미 · 활동 소개와 신청 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-profile",
+      "name": "도우미 신청 · 공개 프로필",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 57,
+      "relativeUrl": "./index.html?screen=A2-profile",
+      "fullContentUrl": "./index.html?screen=A2-profile&capture=full",
+      "frames": [
+        {
+          "name": "57 · 도우미 신청 · 공개 프로필 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-verification",
+      "name": "도우미 신청 · 인증과 경력",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 58,
+      "relativeUrl": "./index.html?screen=A2-verification",
+      "fullContentUrl": "./index.html?screen=A2-verification&capture=full",
+      "frames": [
+        {
+          "name": "58 · 도우미 신청 · 인증과 경력 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-preview",
+      "name": "도우미 신청 · 미리보기와 제출",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 59,
+      "relativeUrl": "./index.html?screen=A2-preview",
+      "fullContentUrl": "./index.html?screen=A2-preview&capture=full",
+      "frames": [
+        {
+          "name": "59 · 도우미 신청 · 미리보기와 제출 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-reviewing",
+      "name": "도우미 신청 · 심사 중",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 60,
+      "relativeUrl": "./index.html?screen=A2-reviewing",
+      "fullContentUrl": "./index.html?screen=A2-reviewing&capture=full",
+      "frames": [
+        {
+          "name": "60 · 도우미 신청 · 심사 중 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-changes",
+      "name": "도우미 신청 · 보완 요청",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 61,
+      "relativeUrl": "./index.html?screen=A2-changes",
+      "fullContentUrl": "./index.html?screen=A2-changes&capture=full",
+      "frames": [
+        {
+          "name": "61 · 도우미 신청 · 보완 요청 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-rejected",
+      "name": "도우미 신청 · 반려",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 62,
+      "relativeUrl": "./index.html?screen=A2-rejected",
+      "fullContentUrl": "./index.html?screen=A2-rejected&capture=full",
+      "frames": [
+        {
+          "name": "62 · 도우미 신청 · 반려 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "A2-approved",
+      "name": "도우미 신청 · 승인",
+      "route": "application",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 63,
+      "relativeUrl": "./index.html?screen=A2-approved",
+      "fullContentUrl": "./index.html?screen=A2-approved&capture=full",
+      "frames": [
+        {
+          "name": "63 · 도우미 신청 · 승인 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-notifications",
+      "name": "공통 · 읽음·안 읽음 알림",
+      "route": "notifications",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 64,
+      "relativeUrl": "./index.html?screen=E-notifications",
+      "fullContentUrl": "./index.html?screen=E-notifications&capture=full",
+      "frames": [
+        {
+          "name": "64 · 공통 · 읽음·안 읽음 알림 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-notifications-empty",
+      "name": "공통 · 알림 없음",
+      "route": "notifications",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 65,
+      "relativeUrl": "./index.html?screen=E-notifications-empty",
+      "fullContentUrl": "./index.html?screen=E-notifications-empty&capture=full",
+      "frames": [
+        {
+          "name": "65 · 공통 · 알림 없음 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-my-user",
+      "name": "이용자 · 마이페이지",
+      "route": "my",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 66,
+      "relativeUrl": "./index.html?screen=E-my-user",
+      "fullContentUrl": "./index.html?screen=E-my-user&capture=full",
+      "frames": [
+        {
+          "name": "66 · 이용자 · 마이페이지 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-my-agent",
+      "name": "도우미 · 마이페이지",
+      "route": "my",
+      "mode": "agent",
+      "selected": 201,
+      "overlay": null,
+      "index": 67,
+      "relativeUrl": "./index.html?screen=E-my-agent",
+      "fullContentUrl": "./index.html?screen=E-my-agent&capture=full",
+      "frames": [
+        {
+          "name": "67 · 도우미 · 마이페이지 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-user-profile",
+      "name": "이용자 · 프로필 수정",
+      "route": "userProfile",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 68,
+      "relativeUrl": "./index.html?screen=E-user-profile",
+      "fullContentUrl": "./index.html?screen=E-user-profile&capture=full",
+      "frames": [
+        {
+          "name": "68 · 이용자 · 프로필 수정 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-helper-profile",
+      "name": "도우미 · 공개 프로필 수정",
+      "route": "helperProfile",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 69,
+      "relativeUrl": "./index.html?screen=E-helper-profile",
+      "fullContentUrl": "./index.html?screen=E-helper-profile&capture=full",
+      "frames": [
+        {
+          "name": "69 · 도우미 · 공개 프로필 수정 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-profile-preview",
+      "name": "도우미 · 공개 프로필 미리보기",
+      "route": "profilePreview",
+      "mode": "agent",
+      "selected": 1,
+      "overlay": null,
+      "index": 70,
+      "relativeUrl": "./index.html?screen=E-profile-preview",
+      "fullContentUrl": "./index.html?screen=E-profile-preview&capture=full",
+      "frames": [
+        {
+          "name": "70 · 도우미 · 공개 프로필 미리보기 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-account",
+      "name": "공통 · 계정과 인증",
+      "route": "account",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 71,
+      "relativeUrl": "./index.html?screen=E-account",
+      "fullContentUrl": "./index.html?screen=E-account&capture=full",
+      "frames": [
+        {
+          "name": "71 · 공통 · 계정과 인증 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-account-error",
+      "name": "공통 · 인증 실패와 재시도",
+      "route": "account",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 72,
+      "relativeUrl": "./index.html?screen=E-account-error",
+      "fullContentUrl": "./index.html?screen=E-account-error&capture=full",
+      "frames": [
+        {
+          "name": "72 · 공통 · 인증 실패와 재시도 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-contact-settings",
+      "name": "공통 · 연락처 관리",
+      "route": "contacts",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 73,
+      "relativeUrl": "./index.html?screen=E-contact-settings",
+      "fullContentUrl": "./index.html?screen=E-contact-settings&capture=full",
+      "frames": [
+        {
+          "name": "73 · 공통 · 연락처 관리 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-guide",
+      "name": "공통 · 이용 방법",
+      "route": "guide",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 74,
+      "relativeUrl": "./index.html?screen=E-guide",
+      "fullContentUrl": "./index.html?screen=E-guide&capture=full",
+      "frames": [
+        {
+          "name": "74 · 공통 · 이용 방법 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-support",
+      "name": "공통 · 도움말",
+      "route": "help",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 75,
+      "relativeUrl": "./index.html?screen=E-support",
+      "fullContentUrl": "./index.html?screen=E-support&capture=full",
+      "frames": [
+        {
+          "name": "75 · 공통 · 도움말 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-terms",
+      "name": "공통 · 이용약관",
+      "route": "terms",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 76,
+      "relativeUrl": "./index.html?screen=E-terms",
+      "fullContentUrl": "./index.html?screen=E-terms&capture=full",
+      "frames": [
+        {
+          "name": "76 · 공통 · 이용약관 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    },
+    {
+      "id": "E-privacy",
+      "name": "공통 · 개인정보 안내",
+      "route": "privacy",
+      "mode": "user",
+      "selected": 201,
+      "overlay": null,
+      "index": 77,
+      "relativeUrl": "./index.html?screen=E-privacy",
+      "fullContentUrl": "./index.html?screen=E-privacy&capture=full",
+      "frames": [
+        {
+          "name": "77 · 공통 · 개인정보 안내 · 데스크톱",
+          "width": 1440,
+          "height": 900
+        }
+      ]
+    }
+  ]
+}

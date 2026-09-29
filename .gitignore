@@ -1,0 +1,15 @@
+# 의존성·빌드 결과
+node_modules/
+web/dist/
+dist-ssr/
+
+# 로컬 설정(백엔드 주소 등). 예시는 web/.env.example
+*.local
+
+# 로그·OS·에디터
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

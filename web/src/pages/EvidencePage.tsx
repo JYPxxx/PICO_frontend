@@ -1,0 +1,243 @@
+import { useState, type FormEvent } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { api, unwrap } from '../api/client';
+import { list, num, pick, str, type Raw } from '../api/pick';
+import { fetchDetail, latestAgreement, resultNames, uploadAttemptFile, uploadResultFile, useLoad, type RequestResult } from '../transactions/model';
+import { Field, FilePicker, Notice, Rows, TxCard, useAction, utcToLocal } from '../transactions/ui';
+import { Icon } from '../ui/Icon';
+import { PageTitle } from '../ui/PageTitle';
+
+// 프로토타입 transactions.js의 attachmentPage(). 도우미 전용.
+// attempt(시도 증빙): POST /api/files/upload-url(ATTEMPT_EVIDENCE) → 업로드 → POST /api/requests/{id}/attempt-evidences → 이용자 승인
+// result(결과): 백엔드 서비스 흐름 가이드 10장 순서를 따른다.
+//   ① 결과 증빙 업로드(/api/evidence-files/upload-url, RESULT) → POST /result/evidence (IN_PROGRESS, 결과 제출 전)
+//   ② 운영팀 파일 검토로 첨부가 CLEAN
+//   ③ POST /result {result, note} — 최신 결과 증빙 첨부가 모두 CLEAN이어야 하고 한 번만 제출
+const scanNames: Record<string, string> = { PENDING: '운영팀 검토 전', CLEAN: '검토 완료', BLOCKED: '차단됨' };
+
+function latestOf(rows: Raw[]) {
+  return [...rows].sort((a, b) => (num(pick(b, 'revision')) ?? 0) - (num(pick(a, 'revision')) ?? 0) || String(pick(b, 'submittedAt') ?? '').localeCompare(String(pick(a, 'submittedAt') ?? '')))[0];
+}
+
+/** 최신 결과 증빙의 첨부 검사 상태: clean(모두 CLEAN) · pending · blocked · unknown(응답에 검사 상태 없음) */
+function scanState(e: Raw | undefined) {
+  if (!e) return 'none';
+  const files = list(pick(e, 'attachments'));
+  const states = files.length ? files.map((f) => str(f.scanStatus) ?? '') : [str(pick(e, 'scanStatus')) ?? ''];
+  if (states.some((x) => x === 'BLOCKED')) return 'blocked';
+  if (states.every((x) => x === 'CLEAN')) return 'clean';
+  if (states.every((x) => !x)) return 'unknown';
+  return 'pending';
+}
+
+export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
+  const { id } = useParams();
+  const requestId = Number(id);
+  const navigate = useNavigate();
+  const isResult = type === 'result';
+  // 운영팀 파일 검토 결과를 보려고 창으로 돌아오면 다시 불러온다.
+  const [load, reload] = useLoad(() => fetchDetail(requestId), [requestId], { refreshOnFocus: isResult });
+  const { pending, run } = useAction();
+  const [files, setFiles] = useState<File[]>([]);
+  const [description, setDescription] = useState('');
+  const [result, setResult] = useState<RequestResult>('SUCCESS');
+  const [progress, setProgress] = useState('');
+
+  if (load.status === 'loading')
+    return (
+      <div className="empty" role="status">
+        <p>요청을 불러오는 중이에요.</p>
+      </div>
+    );
+  if (load.status === 'error')
+    return (
+      <div className="empty">
+        <h1>요청을 불러오지 못했어요</h1>
+        <p>{load.message}</p>
+      </div>
+    );
+
+  const { request: r, stage, agreements, resultEvidences } = load.data;
+  if (stage !== 'in_progress') return <Navigate to={`/requests/${requestId}`} replace />;
+  const a = latestAgreement(agreements);
+  const path = { params: { path: { requestId } } };
+  const latestResult = latestOf(resultEvidences);
+  const scan = scanState(latestResult);
+  const canSubmitResult = scan === 'clean' || scan === 'unknown';
+
+  async function upload(uploader: (f: File) => Promise<string>) {
+    const keys: string[] = [];
+    for (const [i, f] of files.entries()) {
+      setProgress(`파일 올리는 중 (${i + 1}/${files.length})`);
+      keys.push(await uploader(f));
+    }
+    setProgress('');
+    return keys;
+  }
+
+  async function submitAttempt(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const ok = await run(async () => {
+      const keys = await upload(uploadAttemptFile);
+      await unwrap(api.POST('/api/requests/{requestId}/attempt-evidences', { ...path, body: { description: description.trim() || null, attachments: keys.map((storageKey, sortOrder) => ({ storageKey, sortOrder })) } }));
+    }, '시도 증빙을 올렸어요. 이용자가 확인하면 알려드릴게요.');
+    setProgress('');
+    if (ok) navigate(`/requests/${requestId}`, { replace: true });
+  }
+
+  async function submitResultEvidence(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!files.length) return;
+    const ok = await run(async () => {
+      const storageKeys = await upload(uploadResultFile);
+      await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
+    }, '결과 증빙을 올렸어요. 운영팀 파일 검토가 끝나면 결과를 제출할 수 있어요.');
+    setProgress('');
+    if (ok) {
+      setFiles([]);
+      setDescription('');
+      reload();
+    }
+  }
+
+  async function submitResult(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    if (!form.checkValidity()) return form.querySelector<HTMLElement>(':invalid')?.focus();
+    const d = Object.fromEntries([...new FormData(form)].map(([k, v]) => [k, String(v).trim()]));
+    const ok = await run(
+      () => unwrap(api.POST('/api/requests/{requestId}/result', { ...path, body: { result, note: d.note, actualOutcomeDescription: d.outcome || undefined } })),
+      '예매 결과를 등록했어요. 이용자의 확인을 기다려 주세요.',
+    );
+    if (ok) navigate(`/requests/${requestId}`, { replace: true });
+  }
+
+  const conditions = (
+    <aside className="tx-side">
+      <TxCard title="확정된 조건">
+        <h3>{r.targetName}</h3>
+        <Rows
+          rows={[
+            ['희망 좌석·요청 내용', a?.requirements ?? r.requirements],
+            ['성공 요건', a?.successConditions ?? r.successConditions],
+            ['실패·환불 처리', a?.refundRule ?? ''],
+          ]}
+        />
+      </TxCard>
+      {!isResult && <Notice>착수비는 이용자가 시도 증빙을 승인한 뒤 지급 대상이 돼요.</Notice>}
+    </aside>
+  );
+
+  if (!isResult)
+    return (
+      <>
+        <PageTitle title="시도 증빙 등록" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
+        <div className="detail-layout tx-layout">
+          <form id="tx-evidence-form" noValidate onSubmit={submitAttempt}>
+            <TxCard title="시도 증빙">
+              <Notice>예매 대기·좌석 선택·예매 시도 화면을 첨부할 수 있어요. 계정정보 등 민감한 내용은 가려 주세요.</Notice>
+              <Field label="설명">
+                <textarea name="description" rows={3} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:00 대기열 진입, 20:07 좌석 선택 화면까지 진행했어요." />
+              </Field>
+              <div className="tx-upload-heading">
+                <h3>
+                  시도 증빙 자료 <em>*</em>
+                </h3>
+                <span>예매를 시도한 화면을 첨부해 주세요.</span>
+              </div>
+              <FilePicker files={files} onChange={setFiles} />
+              <Notice>파일은 비공개 저장소에 올라가며, 거래 당사자와 운영팀만 확인할 수 있어요.</Notice>
+              <div className="tx-form-footer">
+                <span role="status">{progress}</span>
+                <button type="submit" className="btn primary" disabled={pending || !files.length}>
+                  {pending ? '제출 중…' : '시도 증빙 제출'}
+                </button>
+              </div>
+            </TxCard>
+          </form>
+          {conditions}
+        </div>
+      </>
+    );
+
+  return (
+    <>
+      <PageTitle title="예매 결과 등록" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
+      <div className="detail-layout tx-layout">
+        <div>
+          <TxCard title="1. 결과 증빙">
+            <p className="prose">예매 내역이나 실패 화면을 올려 주세요. 운영팀이 파일을 검토한 뒤 결과를 제출할 수 있어요.</p>
+            {resultEvidences.length > 0 && (
+              <div className="tx-file-list">
+                {resultEvidences.map((e, i) => {
+                  const attached = list(pick(e, 'attachments'));
+                  return (
+                    <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
+                      <div className="tx-file-thumb">
+                        <Icon name="file" size={24} />
+                      </div>
+                      <div>
+                        <strong>
+                          {num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}
+                          {e === latestResult && ' · 최신'}
+                        </strong>
+                        <small>{[str(pick(e, 'description')), utcToLocal(str(pick(e, 'submittedAt')) ?? '')].filter(Boolean).join(' · ') || '설명 없음'}</small>
+                        <small>
+                          {attached.length
+                            ? attached.map((f) => `${str(f.originalName) ?? '파일'} · ${scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? '검토 상태 미확인'}`).join(', ')
+                            : scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? '검토 상태 미확인'}
+                        </small>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {scan === 'pending' && <Notice>운영팀이 파일을 검토하고 있어요. 검토가 끝나면 아래에서 결과를 제출할 수 있어요.</Notice>}
+            {scan === 'blocked' && <Notice tone="error">검토에서 차단된 파일이 있어요. 다른 파일로 다시 올려 주세요.</Notice>}
+            <form noValidate onSubmit={submitResultEvidence}>
+              <Field label="설명">
+                <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 예매 완료 화면, 좌석 1층 B구역 8열" />
+              </Field>
+              <FilePicker files={files} onChange={setFiles} />
+              <div className="tx-form-footer">
+                <span role="status">{progress}</span>
+                <button type="submit" className="btn secondary" disabled={pending || !files.length}>
+                  {latestResult ? '결과 증빙 다시 올리기' : '결과 증빙 올리기'}
+                </button>
+              </div>
+            </form>
+          </TxCard>
+          <form id="tx-evidence-form" noValidate onSubmit={submitResult}>
+            <TxCard title="2. 예매 결과">
+              {!latestResult && <Notice>먼저 결과 증빙을 올려 주세요.</Notice>}
+              <Field label="예매 결과" required>
+                <select value={result} onChange={(e) => setResult(e.target.value as RequestResult)}>
+                  {Object.entries(resultNames).map(([v, t]) => (
+                    <option key={v} value={v}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={result === 'FAILURE' ? '실패 사유' : '결과 설명'} required>
+                <textarea name="note" rows={3} required maxLength={10000} />
+              </Field>
+              <Field label="실제 확보 내용">
+                <input name="outcome" maxLength={10000} placeholder="예: 1층 5구역 8열, 연석 2매" />
+              </Field>
+              <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 같은 결과로 확인하면 거래가 완료되고, 다르면 운영팀이 확인해요.</Notice>
+              <div className="tx-form-footer">
+                <span role="status">{!latestResult ? '' : canSubmitResult ? '' : '결과 증빙 검토를 기다리고 있어요.'}</span>
+                <button type="submit" className="btn primary" disabled={pending || !latestResult || !canSubmitResult}>
+                  {pending ? '제출 중…' : '예매 결과 제출'}
+                </button>
+              </div>
+            </TxCard>
+          </form>
+        </div>
+        {conditions}
+      </div>
+    </>
+  );
+}

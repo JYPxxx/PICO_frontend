@@ -1,0 +1,6 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>Figma 전체 화면 이전</title><style>body{font:14px system-ui;background:#f5f7fa;color:#16181d;margin:24px}h1{font-size:22px}iframe{display:block;border:0;background:white;margin-top:24px}p{color:#4b5160}</style><h1>Figma 전체 화면 이전</h1><p id="status">화면을 준비하고 있어요.</p><div id="views"></div><script type="module">
+const q=new URLSearchParams(location.search),id=q.get('screen')||'B1-home',width=Number(q.get('width')||1440),captureId=q.get('captureId');
+const f=document.createElement('iframe');f.title=id+' · '+width;f.width=width;f.height=width===390?844:900;
+const ep='https://mcp.figma.com/mcp/capture/'+captureId+'/submit?bindVariables=true';
+f.src='./index.html?screen='+id+'&capture=full#figmacapture='+captureId+'&figmaendpoint='+encodeURIComponent(ep)+'&figmadelay=1500';document.querySelector('#views').append(f);document.querySelector('#status').textContent=id+' · '+width+'px · Figma로 이전 중';
+</script></html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PC 화면 미리보기 · 티켓팅 도우미 매칭</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css">
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#edf0f6;color:#16181d;font:14px 'Pretendard Variable',sans-serif}header{padding:22px 28px;background:white;border-bottom:1px solid #dce1e9;position:sticky;top:0;z-index:4;display:flex;gap:24px;align-items:center}h1{font-size:20px;margin:0}header p{margin:7px 0 0;font-size:13px;color:#68768a}header label{display:flex;align-items:center;gap:8px;font-size:13px}.selector{margin-left:auto}select,input{font:inherit}select{background:white;border:1px solid #dce1e9;padding:10px;border-radius:8px;max-width:380px}a{color:#3a5bff;text-decoration:none}.preview-wrap{padding:28px;overflow:auto}.device{width:1440px;margin:0 auto}.device h2{font-size:13px;margin:0 0 12px;color:#5c687a;font-weight:550}.device iframe{display:block;width:1440px;height:900px;border:1px solid #dce1e9;border-radius:12px;background:white;box-shadow:0 8px 28px #253d7310}.catalog{max-width:1496px;margin:auto;padding:0 28px 40px}.catalog h2{font-size:20px}.catalog p{color:#647084;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}.grid button{font:inherit;text-align:left;border:1px solid #dce1e9;border-radius:10px;background:white;padding:14px 16px;cursor:pointer;color:#485469}.grid button:hover{border-color:#b2bfff}.grid button.active{border-color:#3a5bff;color:#3a5bff;background:#eef2ff}.grid small{display:block;margin-top:6px;font-size:11px;color:#7b8697}.actions{display:flex;gap:20px;margin:20px 0;font-size:13px}.notice{padding:14px 18px;background:#e8edff;border-radius:10px;color:#425ab7!important}.preview-state{margin-left:auto;color:#758092;font-size:12px}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #a1b0ff;outline-offset:3px}
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>PC 화면 미리보기</h1><p id="count">화면 목록을 불러오고 있어요.</p></div>
+    <label class="selector">화면 선택 <select id="screen" aria-label="화면 선택"></select></label>
+    <label><input type="checkbox" id="full">전체 내용 펼치기</label>
+  </header>
+  <main class="preview-wrap"><section class="device"><h2>데스크톱 · 1440 × 900 · 본문 최대 1080px <span class="preview-state" id="preview-state" role="status"></span></h2><iframe id="desktop" title="선택한 PC 화면"></iframe></section></main>
+  <section class="catalog">
+    <h2>화면과 진행 상태</h2>
+    <p class="notice">이번 개선은 PC 화면을 기준으로 진행했습니다. 각 화면은 독립된 예시 데이터로 시작하며, 미리보기 안에서는 같은 요청으로 다음 단계를 이어갈 수 있습니다. 기존 Figma 이관본은 변경하지 않았습니다.</p>
+    <div class="actions"><a id="open-screen" target="_blank" rel="noopener">선택한 화면 새 창에서 열기 ↗</a><a href="./index.html" target="_blank" rel="noopener">앱 처음부터 이용하기 ↗</a><a href="./screen-manifest.json" download>PC 화면 목록 내려받기</a></div>
+    <div class="grid" id="catalog"></div>
+  </section>
+  <script type="module">
+    import {screens} from './handoff.js';
+    const select=document.querySelector('#screen'),full=document.querySelector('#full'),frame=document.querySelector('#desktop');
+    select.innerHTML=screens.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    document.querySelector('#count').textContent=`${screens.length}개 PC 화면·상태 · 실제 서비스 흐름에 맞춘 목록`;
+    document.querySelector('#catalog').innerHTML=screens.map(s=>`<button data-id="${s.id}">${s.name}<small>${s.id}${s.overlay?' · 대화상자':''}</small></button>`).join('');
+    function show(id){
+      const spec=screens.find(s=>s.id===id)||screens[0];select.value=spec.id;
+      const url='./index.html?screen='+encodeURIComponent(spec.id)+(full.checked?'&capture=full':'');
+      frame.style.height='900px';frame.title=spec.name+' · PC 미리보기';frame.src=url;
+      document.querySelector('#preview-state').textContent='화면 불러오는 중';
+      document.querySelector('#open-screen').href=url;
+      document.querySelectorAll('[data-id]').forEach(b=>b.classList.toggle('active',b.dataset.id===spec.id));
+      history.replaceState(null,'','#'+spec.id);
+    }
+    select.onchange=()=>show(select.value);full.onchange=()=>show(select.value);
+    document.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{show(b.dataset.id);scrollTo({top:0,behavior:'smooth'})});
+    frame.onload=()=>{document.querySelector('#preview-state').textContent='미리보기 준비 완료'};
+    addEventListener('message',e=>{if(e.origin!==location.origin||e.source!==frame.contentWindow||e.data?.type!=='handoff-ready')return;document.querySelector('#preview-state').textContent='미리보기 준비 완료';if(full.checked)frame.style.height=Math.max(900,e.data.height)+'px'});
+    show(screens.some(s=>s.id===location.hash.slice(1))?location.hash.slice(1):screens[0].id);
+  </script>
+</body>
+</html>

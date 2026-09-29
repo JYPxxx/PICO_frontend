@@ -1,0 +1,13 @@
+/* 프로토타입에 없는 React 전용 화면(개발용)만 스타일한다. 프로토타입 화면 스타일은 여기에 넣지 않는다. */
+.dev-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dev-json { background: #0f1117; color: #d7dcf0; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; max-height: 360px; margin: 12px 0 0; }
+
+/* 관리자 화면(/admin): 프로토타입에 없는 화면이라 여기서만 스타일한다. */
+.admin-tabs { flex-wrap: wrap; row-gap: 8px; }
+.admin-item { display: flex; justify-content: space-between; gap: 20px; padding: 18px 0; border-top: 1px solid var(--line-200); }
+.admin-item:first-of-type { border-top: 0; }
+.admin-item > div:first-child { flex: 1; min-width: 0; }
+.admin-item .document-rows > div { padding: 8px 0; font-size: 13px; }
+.admin-item details { padding: 8px 0 0; border-top: 0; }
+.admin-item summary { font-size: 12px; color: var(--ink-400); }
+.admin-actions { display: flex; flex-direction: column; gap: 8px; min-width: 150px; }
