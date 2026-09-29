@@ -401,18 +401,18 @@ export interface paths {
         };
         /**
          * 후기 개별 조회
-         * @description 인증된 사용자가 requestId로 VISIBLE 후기와 imageUrl을 조회합니다. 후기 없음·숨김·삭제는 404입니다. 사진이 없거나 미검사·차단·유실 상태이면 imageUrl=null이며 본문은 조회할 수 있습니다. 현재 구현은 501을 반환하며 정상 응답은 향후 Service 연동 계약입니다.
+         * @description 인증된 사용자가 requestId로 VISIBLE 후기와 imageUrl을 조회합니다. 후기 없음·숨김·삭제는 404입니다. 사진이 없거나 미지원 형식·재인코딩 실패이거나 공개 주소가 설정되지 않았으면 imageUrl=null이며 본문은 조회할 수 있습니다.
          */
         get: operations["getReview"];
         put?: never;
         /**
          * 후기 작성
-         * @description COMPLETED 거래의 요청자만 작성할 수 있습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 중복 후기와 이미지 저장 키 소유권을 검증합니다. 현재 구현은 501을 반환하며 정상 응답 스키마는 향후 Service 연동 계약입니다.
+         * @description COMPLETED 거래의 요청자만 작성할 수 있습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
          */
         post: operations["createReview"];
         /**
          * 내 후기 삭제
-         * @description 거래 요청자 본인 후기만 DELETED 처리합니다. 요청 행 자체를 삭제하지 않습니다. 성공 응답은 기존 ApiResponse<Void> 형식으로 data=null입니다. 현재 구현은 501을 반환하며 정상 응답 스키마는 향후 Service 연동 계약입니다.
+         * @description 거래 요청자 본인 후기(VISIBLE·HIDDEN)만 DELETED 처리합니다. 요청 행 자체를 삭제하지 않습니다. 공개 사진이 있으면 저장소의 공개본도 함께 지우며, 저장소 삭제에 실패하면 후기 삭제도 되돌립니다. 요청자가 아니면 403, 없는 거래·후기 없음·이미 삭제는 404입니다. 성공 응답은 기존 ApiResponse<Void> 형식으로 data=null입니다.
          */
         delete: operations["deleteReview"];
         options?: never;
@@ -597,7 +597,7 @@ export interface paths {
         };
         /**
          * 시도 증빙 목록 조회
-         * @description 해당 거래의 요청자와 도우미만 ATTEMPT 이력을 revision 내림차순으로 조회합니다. 관리자도 당사자가 아니면 접근할 수 없습니다. CLEAN 첨부에만 5분 유효 HTTPS URL과 expiresAt을 포함하고, 미검사·차단·유실·저장소 장애 시 두 값은 null입니다. 내부 storageKey는 응답하지 않으며 Cache-Control: no-store를 적용합니다.
+         * @description 해당 거래의 요청자와 도우미만 ATTEMPT 이력을 revision 내림차순으로 조회합니다. 관리자도 당사자가 아니면 접근할 수 없습니다. BLOCKED가 아닌 첨부(검사 전 PENDING 포함)에 5분 유효 HTTPS 다운로드 URL·expiresAt·urlType을 포함합니다. JPEG·PNG는 재인코딩 열람본(REENCODED_IMAGE), 그 외 형식이나 재인코딩 실패는 원본(ORIGINAL)입니다. 차단·유실·저장소 장애 시 세 값은 null입니다. 내부 storageKey는 응답하지 않으며 Cache-Control: no-store를 적용합니다.
          */
         get: operations["getEvidences"];
         put?: never;
@@ -729,13 +729,13 @@ export interface paths {
         };
         /**
          * 내 신고 증빙 조회
-         * @description 신고 작성자 본인만 purpose=REPORT인 제출 이력과 첨부 메타데이터를 revision 내림차순으로 조회합니다. 소유권 확인 후 CLEAN 첨부에 5분 유효한 url과 expiresAt을 포함합니다. 미검사·차단·유실 첨부는 두 값 모두 null입니다. 만료 시 목록을 재조회하며 Cache-Control: no-store 적용 및 URL 로그 제외가 필요합니다. 현재 구현은 501을 반환하며 정상 응답 스키마는 향후 Service 연동 계약입니다.
+         * @description 신고 작성자 본인만 purpose=REPORT인 제출 이력과 첨부 메타데이터를 revision 내림차순으로 조회합니다. 소유권 확인 후 BLOCKED가 아닌 첨부(검사 전 PENDING 포함)에 5분 유효한 다운로드 url·expiresAt·urlType을 포함합니다. JPEG·PNG는 재인코딩 열람본(REENCODED_IMAGE), 그 외 형식이나 재인코딩 실패는 원본(ORIGINAL)입니다. 차단·유실·저장소 장애 시 세 값 모두 null입니다. 만료 시 목록을 재조회하며 Cache-Control: no-store를 적용하고 URL은 로그에 남기지 않습니다. 타인·없는 신고는 404입니다.
          */
         get: operations["getReportEvidences"];
         put?: never;
         /**
          * 신고 증빙 추가
-         * @description 본인이 접수한 신고에 제출합니다. purpose=REPORT, case_number=1, report_id만 지정하며 request_id는 비웁니다. 파일 소유권·20 MiB 제한·MIME·검사 결과·표시 순서 중복을 검증합니다. 현재 구현은 501을 반환하며 정상 응답 스키마는 향후 Service 연동 계약입니다.
+         * @description 본인이 접수한 처리 중(OPEN·INVESTIGATING) 신고에 제출합니다. purpose=REPORT, case_number=1, report_id만 지정하며 request_id는 비웁니다. 제출할 때마다 revision이 1 늘고 SUBMITTED로 보관하며 신고 상태는 바꾸지 않습니다. 첨부는 purpose=REPORT_EVIDENCE로 업로드한 본인 파일만 허용하며 파일 소유권·20 MiB 제한·MIME·파일 시그니처·표시 순서 중복을 검증합니다. 타인·없는 신고는 404, 처리가 끝난 신고는 409입니다. Cache-Control: no-store를 적용합니다.
          */
         post: operations["addEvidence"];
         delete?: never;
@@ -1208,6 +1208,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/reviews/{requestId}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 관리자 후기 숨김
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 본문 없이 호출합니다. 후기 상태를 HIDDEN으로 변경하고 공개 사진과 공개 기록도 제거합니다. 공개 후기 목록·상세 및 평점 집계에서 제외됩니다. 후기 원문·거래·결제는 삭제하지 않습니다. 반복 호출은 성공하며 작성자 삭제 후기는 404입니다. 사진 저장소 장애는 503으로 실패하고 DB 변경은 롤백합니다. 기존 CDN 캐시는 최대 5분 잔존할 수 있으며 내려받은 사본은 회수할 수 없습니다. 재공개 API는 제공하지 않습니다. ADMIN 권한이 필요합니다.
+         */
+        post: operations["hide"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/requests/{requestId}/resolve": {
         parameters: {
             query?: never;
@@ -1458,6 +1478,30 @@ export interface paths {
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
          */
         patch: operations["edit_1"];
+        trace?: never;
+    };
+    "/api/admin/reports/{reportId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 신고 상세
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["get_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * 관리자 신고 상태·처리 사유 기록
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. OPEN→INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING→RESOLVED/DISMISSED만 허용합니다. 최종 처리 사유는 신고자에게 공개됩니다. ADMIN 권한이 필요합니다.
+         */
+        patch: operations["update"];
         trace?: never;
     };
     "/api/notifications/{notificationId}": {
@@ -1931,7 +1975,7 @@ export interface paths {
          * 공개 대행자 프로필 조회
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
          */
-        get: operations["get_1"];
+        get: operations["get_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1949,7 +1993,7 @@ export interface paths {
         };
         /**
          * 도우미 후기 목록
-         * @description agentId는 requests.agent_user_id가 참조하는 users.id입니다. VISIBLE 후기만 작성 시각 내림차순, 동일 시각은 requestId 내림차순으로 반환합니다. imageKey 대신 안전 검사된 공개 사진의 imageUrl을 포함하고 사진 없음·미검사·차단·유실이면 null입니다. 현재 구현은 501을 반환하며 정상 응답 스키마는 향후 Service 연동 계약입니다.
+         * @description agentId는 requests.agent_user_id가 참조하는 users.id입니다. 인증된 사용자가 VISIBLE 후기만 작성 시각 내림차순, 동일 시각은 requestId 내림차순으로 조회합니다. 후기가 없거나 없는 회원이면 빈 배열입니다. imageKey 대신 안전 검사된 공개 사진의 imageUrl을 포함하고 사진 없음·미지원 형식·재인코딩 실패이거나 공개 주소가 설정되지 않았으면 null입니다.
          */
         get: operations["getReviews"];
         put?: never;
@@ -1980,6 +2024,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 후기 목록
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. VISIBLE/HIDDEN 후기만 조회합니다. status 선택 필터, 최신 작성순 정렬. 작성자가 삭제한 후기는 제외합니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["list_4"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reviews/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 후기 상세
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 후기 식별자는 requests.id입니다. 숨긴 원문은 관리자만 확인하며 숨김 후 imageUrl은 null입니다. 후기 없음·작성자 삭제는 404입니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["get_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/requests/policy-pending": {
         parameters: {
             query?: never;
@@ -1992,6 +2076,26 @@ export interface paths {
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 신고 목록
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 신고 상태로 선택 필터링하고 최신 접수순으로 페이지 조회합니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["list_5"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2527,8 +2631,8 @@ export interface components {
              */
             comment?: string | null;
             /**
-             * @description 서버가 imageKey로 구성한 공개 후기 사진 HTTPS URL. 사진 없음·미검사·차단·유실이면 null; DB 컬럼 아님
-             * @example https://cdn.example.com/reviews/example.png
+             * @description 재인코딩을 통과한 공개 후기 사진(JPEG)의 HTTPS URL. 사진 없음·미지원 형식·재인코딩 실패·공개 주소 미설정이면 null; DB 컬럼 아님
+             * @example https://cdn.example.com/public/review/0b7c2f1e-3a4d-4e8f-9a51-6d2c8b1e7f40.jpg
              */
             imageUrl?: string | null;
             /**
@@ -2725,7 +2829,7 @@ export interface components {
          * @enum {string}
          */
         AttachmentScanStatus: "PENDING" | "CLEAN" | "BLOCKED";
-        /** @description 증빙 파일 메타데이터와 권한 확인 후 발급한 열람 URL. 미검사·차단·유실 파일은 url과 expiresAt 모두 null */
+        /** @description 증빙 파일 메타데이터와 권한 확인 후 발급한 열람 URL. 차단(BLOCKED)·유실 파일은 url·expiresAt·urlType 모두 null */
         EvidenceAttachmentResponse: {
             /**
              * Format: int64
@@ -2756,17 +2860,22 @@ export interface components {
              */
             sortOrder: number;
             /**
-             * @description attachments.scan_status. CLEAN만 열람 허용
-             * @example CLEAN
+             * @description attachments.scan_status. 현재 자동 검사가 없어 신규 첨부는 PENDING. BLOCKED면 url 없음
+             * @example PENDING
              */
             scanStatus: components["schemas"]["AttachmentScanStatus"];
-            /** @description CLEAN 파일의 5분 유효 HTTPS 서명 URL. 없으면 null */
+            /** @description BLOCKED가 아닌 파일의 5분 유효 HTTPS 다운로드 URL. JPEG·PNG는 재인코딩 열람본, 그 외는 원본. 파일 유실이면 null */
             url?: string | null;
             /**
              * Format: date-time
              * @description URL 만료 시각 UTC. 만료 후 증빙 목록 재조회; url이 null이면 null
              */
             expiresAt?: string | null;
+            /**
+             * @description url이 가리키는 파일 종류. url이 null이면 null
+             * @example REENCODED_IMAGE
+             */
+            urlType?: components["schemas"]["EvidenceUrlType"];
         };
         /**
          * @description evidence_submissions.purpose의 DDL CHECK 허용값
@@ -2839,6 +2948,11 @@ export interface components {
             /** @description attachments.submission_id → evidence_submissions.id; sort_order 오름차순 */
             attachments: components["schemas"]["EvidenceAttachmentResponse"][];
         };
+        /**
+         * @description 증빙 열람 URL이 가리키는 파일. REENCODED_IMAGE: 서버가 다시 만든 JPEG(EXIF·덧붙인 데이터 제거). ORIGINAL: 제출 원본 그대로(scanStatus가 CLEAN이 아니면 검사 전 파일이므로 화면에서 주의 안내 필요)
+         * @enum {string}
+         */
+        EvidenceUrlType: "REENCODED_IMAGE" | "ORIGINAL";
         Agreement: {
             /** Format: int64 */
             upfrontFeeKrw?: number;
@@ -3507,6 +3621,39 @@ export interface components {
          * @enum {string}
          */
         UserMode: "REQUESTER" | "AGENT";
+        /** @description 관리자 신고 처리. INVESTIGATING에는 메모를 넣지 않고, RESOLVED/DISMISSED에는 공개 처리 사유를 입력합니다. */
+        AdminReportUpdateRequest: {
+            status: components["schemas"]["ReportStatus"];
+            resolutionNote?: string;
+        };
+        /** @description 관리자 전용 신고 내역. 신고자·처리자 식별자를 포함합니다. */
+        AdminReportResponse: {
+            /** Format: int64 */
+            reportId?: number;
+            /** Format: int64 */
+            reporterUserId?: number;
+            /** Format: int64 */
+            reportedUserId?: number;
+            /** Format: int64 */
+            requestId?: number | null;
+            reason?: components["schemas"]["ReportReason"];
+            description?: string;
+            status?: components["schemas"]["ReportStatus"];
+            /** Format: int64 */
+            handlerUserId?: number | null;
+            /** @description 신고자에게도 공개되는 최종 처리 사유 */
+            resolutionNote?: string | null;
+            /** Format: date-time */
+            resolvedAt?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseAdminReportResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminReportResponse"];
+            message?: string;
+        };
         /**
          * @description requests.status의 DDL CHECK 허용값
          * @enum {string}
@@ -3746,6 +3893,12 @@ export interface components {
         ApiResponseListReviewResponse: {
             success?: boolean;
             data?: components["schemas"]["ReviewResponse"][];
+            message?: string;
+        };
+        /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
+        ApiResponseListAdminReportResponse: {
+            success?: boolean;
+            data?: components["schemas"]["AdminReportResponse"][];
             message?: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
@@ -5795,7 +5948,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Service 구현 후 정상 응답 */
+            /** @description 정상 응답 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5822,7 +5975,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 행위자 권한 또는 소유권 없음 (향후 구현) */
+            /** @description 거래 요청자가 아니거나 사진 소유권 없음 */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5831,7 +5984,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 대상 리소스 없음 (향후 구현) */
+            /** @description 거래 또는 후기 없음 */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5840,7 +5993,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 상태·중복·정책 충돌 (향후 구현) */
+            /** @description 미완료 거래 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5851,15 +6004,6 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description Service 미구현: 상태 변경이나 외부 호출 없이 종료 */
-            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5888,7 +6032,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Service 구현 후 정상 응답 */
+            /** @description 정상 응답 */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -5915,7 +6059,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 행위자 권한 또는 소유권 없음 (향후 구현) */
+            /** @description 거래 요청자가 아니거나 사진 소유권 없음 */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5924,7 +6068,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 대상 리소스 없음 (향후 구현) */
+            /** @description 거래 또는 후기 없음 */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5933,7 +6077,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 상태·중복·정책 충돌 (향후 구현) */
+            /** @description 미완료 거래 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5944,15 +6088,6 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description Service 미구현: 상태 변경이나 외부 호출 없이 종료 */
-            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5977,7 +6112,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Service 구현 후 정상 응답 */
+            /** @description 정상 응답 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6004,7 +6139,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 행위자 권한 또는 소유권 없음 (향후 구현) */
+            /** @description 거래 요청자가 아니거나 사진 소유권 없음 */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6013,7 +6148,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 대상 리소스 없음 (향후 구현) */
+            /** @description 거래 또는 후기 없음 */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -6022,7 +6157,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 상태·중복·정책 충돌 (향후 구현) */
+            /** @description 미완료 거래 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6033,15 +6168,6 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description Service 미구현: 상태 변경이나 외부 호출 없이 종료 */
-            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7600,7 +7726,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Service 구현 후 정상 응답 */
+            /** @description 정상 응답 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -7663,15 +7789,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 신고 증빙 Service 미구현 */
-            501: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
         };
     };
     addEvidence: {
@@ -7693,7 +7810,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Service 구현 후 정상 응답 */
+            /** @description 정상 응답 */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -7749,15 +7866,6 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description 신고 증빙 Service 미구현 */
-            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9632,6 +9740,82 @@ export interface operations {
             };
         };
     };
+    hide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReviewResponse"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     resolve: {
         parameters: {
             query?: never;
@@ -10721,6 +10905,162 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    get_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminReportResponse"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReportUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminReportResponse"];
                 };
             };
             /** @description 입력 형식·범위 오류 */
@@ -12458,7 +12798,7 @@ export interface operations {
             };
         };
     };
-    get_1: {
+    get_2: {
         parameters: {
             query?: never;
             header?: never;
@@ -12542,7 +12882,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Service 구현 후 정상 응답 */
+            /** @description 정상 응답 */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12569,7 +12909,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 행위자 권한 또는 소유권 없음 (향후 구현) */
+            /** @description 거래 요청자가 아니거나 사진 소유권 없음 */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -12578,7 +12918,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 대상 리소스 없음 (향후 구현) */
+            /** @description 거래 또는 후기 없음 */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -12587,7 +12927,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 상태·중복·정책 충돌 (향후 구현) */
+            /** @description 미완료 거래 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -12598,15 +12938,6 @@ export interface operations {
             };
             /** @description 서버 오류가 발생했습니다. */
             500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiResponseError"];
-                };
-            };
-            /** @description Service 미구현: 상태 변경이나 외부 호출 없이 종료 */
-            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12693,6 +13024,160 @@ export interface operations {
             };
         };
     };
+    list_4: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ReviewStatus"];
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListReviewResponse"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    get_3: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseReviewResponse"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     pending: {
         parameters: {
             query?: {
@@ -12712,6 +13197,84 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    list_5: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ReportStatus"];
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListAdminReportResponse"];
                 };
             };
             /** @description 입력 형식·범위 오류 */

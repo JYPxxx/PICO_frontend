@@ -14,7 +14,6 @@ import { useToast } from '../ui/Toast';
 // 3) POST /api/payments/{id}/confirm → 서버가 PG에 입금 여부를 확인해 PAID로 확정(입금 전이면 PENDING 그대로)
 type VirtualAccount = { bankName?: string; accountNumber?: string; accountHolder?: string; amountKrw?: number; depositDueAt?: string };
 
-const isMock = import.meta.env.MODE === 'mock';
 
 export function PaymentPage() {
   const { id } = useParams();
@@ -144,7 +143,6 @@ export function PaymentPage() {
                 ]}
               />
               <Notice>입금액이 정확히 같아야 확인돼요. 기한이 지나면 주문이 취소돼요.</Notice>
-              {isMock && <Notice>목 서버에서는 '입금 확인'을 누르면 입금된 것으로 처리해요.</Notice>}
             </TxCard>
           )}
           {current && !va && <Notice>입금 계좌를 불러오지 못했어요. 결제 연동이 준비되지 않았을 수 있어요.</Notice>}

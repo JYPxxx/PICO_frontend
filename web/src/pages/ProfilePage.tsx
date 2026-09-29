@@ -36,7 +36,7 @@ function useAgentProfile(id: number): Load {
     const path = { params: { path: { agentId: id } } };
     Promise.all([
       unwrap<Record<string, unknown>>(api.GET('/api/agents/{agentId}', path)),
-      // 후기 API가 아직 501일 수 있다. 실패하면 후기 없이 프로필만 보여 준다.
+      // 후기 목록을 못 받아도 프로필은 보여 준다.
       unwrap<Record<string, unknown>[] | { items?: Record<string, unknown>[] }>(api.GET('/api/agents/{agentId}/reviews', { params: { path: { agentId: id }, query: { page: 0, size: 100 } } })).catch(() => []),
     ]).then(
       ([raw, reviews]) => {

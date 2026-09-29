@@ -9,11 +9,11 @@ import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 
 // 관리자 화면. 프로토타입에 없어서 기존 화면 부품(content-card, tabs, document-rows, btn)으로 만든다.
-// 백엔드 서비스 흐름 가이드 12-4의 관리자 기능 중 openapi.json에 있는 API만 쓴다(후기 숨김·신고 처리는 명세에 없음).
+// 백엔드 서비스 흐름 가이드 12-4의 관리자 기능을 openapi.json의 관리자 API로 연결한다.
 // 권한은 서버가 검사한다(ROLE_ADMIN이 아니면 403). 메뉴에는 노출하지 않고 /admin 주소로 들어온다.
 // 목록 응답 필드가 명세에 없는 API가 많아(data: object) pick()으로 찾고, 항목마다 원본 응답을 펼쳐 볼 수 있게 했다.
 
-type Tab = 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'payments' | 'users' | 'setup';
+type Tab = 'policy' | 'files' | 'profiles' | 'attempts' | 'settlements' | 'requests' | 'payments' | 'reports' | 'reviews' | 'users' | 'setup';
 const tabs: [Tab, string][] = [
   ['policy', '요청 정책 검토'],
   ['files', '증빙 파일 검토'],
@@ -22,6 +22,8 @@ const tabs: [Tab, string][] = [
   ['settlements', '부분성공 정산'],
   ['requests', '분쟁·만료'],
   ['payments', '결제 확인'],
+  ['reports', '신고'],
+  ['reviews', '후기'],
   ['users', '회원 제재'],
   ['setup', '약관·예매처'],
 ];
@@ -611,6 +613,204 @@ function PaymentsTab() {
   );
 }
 
+// ── 신고 ─────────────────────────────────────────────────
+// OPEN → INVESTIGATING/RESOLVED/DISMISSED, INVESTIGATING → RESOLVED/DISMISSED. 최종 처리 사유는 신고자에게 공개된다.
+// 신고 처리는 제재를 하지 않는다. 제재가 필요하면 회원 제재 탭에서 따로 한다.
+type ReportStatus = components['schemas']['ReportStatus'];
+const reportStatusNames: Record<ReportStatus, string> = { OPEN: '접수', INVESTIGATING: '조사 중', RESOLVED: '처리 완료', DISMISSED: '처리 안 함' };
+const reportReasonNames: Record<string, string> = { FRAUD: '사기·금전 피해', MACRO: '매크로 등 부정한 예매', RESALE: '재판매·티켓 양도', FALSE_REVIEW: '거짓 후기', OTHER: '기타' };
+
+/** 상세 API 응답을 그대로 보여 주는 모달 */
+function DetailModal({ title, fetcher, onClose }: { title: string; fetcher: () => Promise<unknown>; onClose: () => void }) {
+  const [load] = useLoad(
+    () =>
+      fetcher().then(
+        (d) => d as Raw,
+        (e) => Promise.reject(new Error(errorText(e))),
+      ),
+    [],
+  );
+  return (
+    <Modal title={title} onClose={onClose} wide>
+      {load.status === 'loading' ? <p className="prose">불러오는 중이에요.</p> : load.status === 'error' ? <Notice tone="error">{load.message}</Notice> : <pre className="dev-json">{JSON.stringify(load.data, null, 2)}</pre>}
+      <div className="modal-actions">
+        <button type="button" className="btn secondary" onClick={onClose}>
+          닫기
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function StatusFilter<T extends string>({ value, onChange, options }: { value: T | ''; onChange: (v: T | '') => void; options: [T, string][] }) {
+  return (
+    <section className="content-card">
+      <Field label="상태">
+        <select value={value} onChange={(e) => onChange(e.target.value as T | '')}>
+          <option value="">전체</option>
+          {options.map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </Field>
+    </section>
+  );
+}
+
+function ReportsTab() {
+  const [status, setStatus] = useState<ReportStatus | ''>('OPEN');
+  const [load, reload] = useLoad<Raw[]>(
+    () =>
+      unwrap(api.GET('/api/admin/reports', { params: { query: { status: status || undefined, page: 0, size: 100 } } })).then(list, (e) => {
+        throw new Error(errorText(e));
+      }),
+    [status],
+  );
+  const { open, modal, pending } = useDialog(reload);
+  const [detail, setDetail] = useState<number | null>(null);
+  const update = (row: Raw, next: ReportStatus) =>
+    open({
+      title: `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
+      fields: next === 'INVESTIGATING' ? [] : [{ name: 'note', label: '처리 사유 (신고자에게 공개)', required: true, type: 'textarea' }],
+      submitText: next === 'INVESTIGATING' ? '조사 시작' : reportStatusNames[next],
+      danger: next === 'DISMISSED',
+      success: next === 'INVESTIGATING' ? '조사 중으로 바꿨어요.' : '신고 처리를 기록했어요.',
+      action: (v) =>
+        unwrap(api.PATCH('/api/admin/reports/{reportId}', { params: { path: { reportId: n(row, 'reportId')! } }, body: { status: next, resolutionNote: next === 'INVESTIGATING' ? undefined : v.note } })),
+    });
+  return (
+    <>
+      <StatusFilter value={status} onChange={setStatus} options={Object.entries(reportStatusNames) as [ReportStatus, string][]} />
+      <ListBlock title="신고 목록" desc="처리 사유는 신고자에게 공개돼요. 이용 정지 등 제재는 회원 제재 탭에서 따로 해요. 신고 증빙은 관리자 조회 API가 없어 여기서 볼 수 없어요." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
+        {(rows) =>
+          rows.map((row) => {
+            const st = s(row, 'status') as ReportStatus;
+            const active = st === 'OPEN' || st === 'INVESTIGATING';
+            return (
+              <Item
+                key={String(n(row, 'reportId'))}
+                raw={row}
+                title={`#${n(row, 'reportId')} ${reportReasonNames[s(row, 'reason')] ?? s(row, 'reason')} · ${reportStatusNames[st] ?? st}`}
+                rows={[
+                  ['신고자 → 대상', `회원 #${n(row, 'reporterUserId')} → 회원 #${n(row, 'reportedUserId')}`],
+                  ['관련 거래', n(row, 'requestId') ? `#${n(row, 'requestId')}` : ''],
+                  ['내용', s(row, 'description')],
+                  ['처리 사유', s(row, 'resolutionNote')],
+                  ['접수', utcToLocal(s(row, 'createdAt'))],
+                  ['처리', utcToLocal(s(row, 'resolvedAt'))],
+                ]}
+              >
+                <button type="button" className="btn ghost" onClick={() => setDetail(n(row, 'reportId')!)}>
+                  상세
+                </button>
+                {st === 'OPEN' && (
+                  <button type="button" className="btn secondary" disabled={pending} onClick={() => update(row, 'INVESTIGATING')}>
+                    조사 시작
+                  </button>
+                )}
+                {active && (
+                  <>
+                    <button type="button" className="btn primary" disabled={pending} onClick={() => update(row, 'RESOLVED')}>
+                      처리 완료
+                    </button>
+                    <button type="button" className="btn ghost tx-danger" disabled={pending} onClick={() => update(row, 'DISMISSED')}>
+                      처리 안 함
+                    </button>
+                  </>
+                )}
+              </Item>
+            );
+          })
+        }
+      </ListBlock>
+      {modal}
+      {detail !== null && <DetailModal title={`신고 #${detail}`} fetcher={() => unwrap(api.GET('/api/admin/reports/{reportId}', { params: { path: { reportId: detail } } }))} onClose={() => setDetail(null)} />}
+    </>
+  );
+}
+
+// ── 후기 ─────────────────────────────────────────────────
+// 숨기면 공개 목록·평점에서 빠지고 공개 사진도 지워진다. 다시 공개하는 API는 없다.
+type ReviewStatus = components['schemas']['ReviewStatus'];
+const reviewStatusNames: [ReviewStatus, string][] = [
+  ['VISIBLE', '공개'],
+  ['HIDDEN', '숨김'],
+];
+
+function ReviewsTab() {
+  const [status, setStatus] = useState<ReviewStatus | ''>('VISIBLE');
+  const [load, reload] = useLoad<Raw[]>(
+    () =>
+      unwrap(api.GET('/api/admin/reviews', { params: { query: { status: status || undefined, page: 0, size: 100 } } })).then(list, (e) => {
+        throw new Error(errorText(e));
+      }),
+    [status],
+  );
+  const { open, modal, pending } = useDialog(reload);
+  const [detail, setDetail] = useState<number | null>(null);
+  return (
+    <>
+      <StatusFilter value={status} onChange={setStatus} options={reviewStatusNames} />
+      <ListBlock title="후기 목록" desc="숨긴 후기는 공개 목록과 평점에서 빠지고 사진도 지워져요. 다시 공개할 수 없어요. 작성자가 삭제한 후기는 보이지 않아요." load={load} reload={reload} empty="해당 상태의 후기가 없어요.">
+        {(rows) =>
+          rows.map((row) => {
+            const hidden = s(row, 'status') === 'HIDDEN';
+            return (
+              <Item
+                key={String(n(row, 'requestId'))}
+                raw={row}
+                title={`거래 #${n(row, 'requestId')} · ${'★'.repeat(n(row, 'rating') ?? 0)} · ${hidden ? '숨김' : '공개'}`}
+                rows={[
+                  ['작성자 → 도우미', `회원 #${n(row, 'requesterId')} → 회원 #${n(row, 'agentId')}`],
+                  ['내용', s(row, 'comment')],
+                  [
+                    '사진',
+                    s(row, 'imageUrl') ? (
+                      <a key="photo" href={s(row, 'imageUrl')} target="_blank" rel="noreferrer">
+                        보기
+                      </a>
+                    ) : (
+                      ''
+                    ),
+                  ],
+                  ['작성', utcToLocal(s(row, 'reviewedAt'))],
+                ]}
+              >
+                <button type="button" className="btn ghost" onClick={() => setDetail(n(row, 'requestId')!)}>
+                  상세
+                </button>
+                {!hidden && (
+                  <button
+                    type="button"
+                    className="btn ghost tx-danger"
+                    disabled={pending}
+                    onClick={() =>
+                      open({
+                        title: '후기를 숨길까요? 다시 공개할 수 없어요.',
+                        fields: [],
+                        submitText: '숨기기',
+                        danger: true,
+                        success: '후기를 숨겼어요.',
+                        action: () => unwrap(api.POST('/api/admin/reviews/{requestId}/hide', { params: { path: { requestId: n(row, 'requestId')! } } })),
+                      })
+                    }
+                  >
+                    숨기기
+                  </button>
+                )}
+              </Item>
+            );
+          })
+        }
+      </ListBlock>
+      {modal}
+      {detail !== null && <DetailModal title={`거래 #${detail} 후기`} fetcher={() => unwrap(api.GET('/api/admin/reviews/{requestId}', { params: { path: { requestId: detail } } }))} onClose={() => setDetail(null)} />}
+    </>
+  );
+}
+
 // ── 회원 제재 ─────────────────────────────────────────────
 function UsersTab() {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/users', { params: { query: { page: 0, size: 100 } } })));
@@ -871,6 +1071,8 @@ export function AdminPage() {
       {tab === 'settlements' && <SettlementsTab />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'payments' && <PaymentsTab />}
+      {tab === 'reports' && <ReportsTab />}
+      {tab === 'reviews' && <ReviewsTab />}
       {tab === 'users' && <UsersTab />}
       {tab === 'setup' && <SetupTab />}
     </>

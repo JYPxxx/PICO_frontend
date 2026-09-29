@@ -11,7 +11,6 @@ import { useToast } from '../ui/Toast';
 
 // 프로토타입 discovery.js의 review()와 pc-interactions.js의 starField().
 // 명세: POST /api/requests/{id}/review {rating 1~5, comment ≤400, imageKey?} — COMPLETED 거래의 이용자만, 한 번.
-// 현재 백엔드는 501(미구현)이라 제출하면 '아직 준비 중인 기능'으로 안내된다.
 function StarField({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   return (
     <fieldset className="field star-field">

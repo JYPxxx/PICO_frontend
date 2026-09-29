@@ -393,12 +393,13 @@ async function putFile(target: { uploadUrl?: string; method?: string; requiredHe
   return target.storageKey;
 }
 
-export async function uploadAttemptFile(file: File) {
-  const target = await unwrap(
-    api.POST('/api/files/upload-url', { body: { purpose: 'ATTEMPT_EVIDENCE', originalName: file.name, mimeType: file.type || 'application/octet-stream', sizeBytes: file.size } }),
-  );
+async function uploadPrivateFile(purpose: 'ATTEMPT_EVIDENCE' | 'REPORT_EVIDENCE', file: File) {
+  const target = await unwrap(api.POST('/api/files/upload-url', { body: { purpose, originalName: file.name, mimeType: file.type || 'application/octet-stream', sizeBytes: file.size } }));
   return putFile(target, file);
 }
+
+export const uploadAttemptFile = (file: File) => uploadPrivateFile('ATTEMPT_EVIDENCE', file);
+export const uploadReportFile = (file: File) => uploadPrivateFile('REPORT_EVIDENCE', file);
 
 export async function uploadResultFile(file: File) {
   const target = await unwrap<Raw>(
