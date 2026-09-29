@@ -241,7 +241,6 @@ export function AppLayout() {
           </div>
         </div>
         <p>PICO는 이용자와 도우미를 연결하며 예매 성공이나 티켓을 보증하지 않습니다.</p>
-        {import.meta.env.MODE === 'mock' && <p className="demo-note">목 서버 연결 중 · 데이터는 개발용 예시예요.</p>}
         <small>© 2026 PICO</small>
       </footer>
     </>

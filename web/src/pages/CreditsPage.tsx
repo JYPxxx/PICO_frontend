@@ -11,11 +11,9 @@ import { PageTitle } from '../ui/PageTitle';
 // 명세: 판매 패키지는 10회 5,000원 하나. 구매 생성(POST /purchases) → PortOne 결제창 → 승인(POST /purchases/{id}/payment, txId를 pgPaymentKey로)
 const PACK_UNITS = 10;
 const PACK_PRICE = 5000;
-const isMock = import.meta.env.MODE === 'mock';
 
-/** PortOne 결제창을 띄우고 txId를 돌려준다. 목 서버에서는 결제창 없이 가짜 키를 쓴다. */
+/** PortOne 결제창을 띄우고 txId를 돌려준다. */
 async function payWithPortOne(orderNumber: string, amount: number) {
-  if (isMock) return `mock-tx-${orderNumber}`;
   const config = await unwrap<{ storeId: string; channelKey: string }>(api.GET('/api/payments/checkout-config'));
   const PortOne = await loadPortOne();
   const res = await PortOne.requestPayment({
@@ -124,7 +122,7 @@ export function CreditsPage() {
             <button type="button" className="btn primary full" disabled={!agreed || pending} onClick={buy}>
               {pending ? '결제 진행 중…' : '매칭권 충전하기'}
             </button>
-            {isMock ? <Notice>목 서버에서는 결제창 없이 바로 충전돼요.</Notice> : <Notice>카드 결제창(PortOne)이 열려요.</Notice>}
+            <Notice>카드 결제창(PortOne)이 열려요.</Notice>
           </section>
         </aside>
       </div>
