@@ -430,7 +430,10 @@ export function RequestDetailPage() {
         );
       case 'result_submitted':
         return agent ? (
-          <Notice>이용자가 결과를 확인하고 있어요. 24시간 동안 답이 없으면 운영팀이 확정해요.</Notice>
+          <>
+            <Notice>이용자가 결과를 확인하고 있어요. 24시간 동안 답이 없으면 운영팀이 확정해요.</Notice>
+            {go(`/requests/${r.id}/result`, '추가 자료 올리기', 'secondary')}
+          </>
         ) : (
           <>
             {btn('예매 결과 확인하기', () => setDialog('result'))}
@@ -441,7 +444,7 @@ export function RequestDetailPage() {
         return agent ? (
           <>
             <Notice>이용자가 결과에 이의를 제기해 운영팀이 확인하고 있어요. 아래 분쟁 소명에 설명을 남기고, 예매 내역이 있으면 결과 증빙도 올려 주세요.</Notice>
-            {go(`/requests/${r.id}/result`, '결과 증빙 추가')}
+            {go(`/requests/${r.id}/result`, '추가 자료 올리기')}
           </>
         ) : (
           <Notice>이의를 접수했어요. 아래 분쟁 소명에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 최종 결과를 정해요.</Notice>
@@ -645,7 +648,9 @@ export function RequestDetailPage() {
               <p className="record-note">
                 {agent
                   ? latestEvidence?.status === 'REJECTED'
-                    ? '반려 사유를 반박할 자료가 있으면 다시 올려 주세요(선택). 반려된 증빙으로도 결과를 등록할 수 있고, 결과가 확정되면 착수비는 지급돼요.'
+                    ? stage === 'in_progress'
+                      ? '반려 사유를 반박할 자료가 있으면 다시 올려 주세요(선택). 반려된 증빙으로도 결과를 등록할 수 있고, 결과가 확정되면 착수비는 지급돼요.'
+                      : "반려 사유를 반박할 자료가 있으면 '추가 자료 올리기'로 올려 주세요. 이용자가 바로 보고, 이의가 생기면 운영팀이 함께 판단해요. 결과가 확정되면 착수비는 지급돼요."
                     : '이용자가 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인되지 않아도 결과가 확정되면 지급돼요.'
                   : '시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인하지 않아도 결과가 확정되면 지급돼요.'}
               </p>

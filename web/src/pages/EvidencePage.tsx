@@ -60,7 +60,9 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
   const { request: r, stage, agreements, resultEvidences, evidences } = load.data;
   // 분쟁 중에는 도우미가 결과 증빙만 추가할 수 있다(운영팀 판단 자료).
   const disputed = isResult && stage === 'disputed';
-  if (stage !== 'in_progress' && !disputed) return <Navigate to={`/requests/${requestId}`} replace />;
+  // 결과를 낸 뒤 이용자 확인 중에도 추가 자료(결과 증빙)를 올릴 수 있다. 반려된 시도 증빙에 답할 때 쓴다.
+  const confirming = isResult && stage === 'result_submitted';
+  if (stage !== 'in_progress' && !disputed && !confirming) return <Navigate to={`/requests/${requestId}`} replace />;
   const a = latestAgreement(agreements);
   const path = { params: { path: { requestId } } };
   const latestResult = latestOf(resultEvidences);
@@ -96,7 +98,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     const ok = await run(async () => {
       const storageKeys = await upload(uploadResultFile);
       await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
-    }, disputed ? '결과 증빙을 올렸어요. 운영팀이 확인해 결과를 정해요.' : '결과 증빙을 올렸어요. 이용자도 바로 볼 수 있어요.');
+    }, disputed ? '추가 자료를 올렸어요. 운영팀이 확인해 결과를 정해요.' : '추가 자료를 올렸어요. 이용자도 바로 볼 수 있어요.');
     setProgress('');
     if (ok) {
       setFiles([]);
@@ -182,14 +184,18 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     )
   );
 
-  // 분쟁 중: 운영팀 판단 자료로 결과 증빙만 추가한다.
-  if (disputed)
+  // 이용자 확인 중·분쟁 중: 결과는 이미 냈으므로 추가 자료(결과 증빙)만 올린다.
+  if (disputed || confirming)
     return (
       <>
-        <PageTitle title="결과 증빙 추가" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
+        <PageTitle title="추가 자료 올리기" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
         <div className="detail-layout tx-layout">
-          <TxCard title="결과 증빙">
-            <p className="prose">이용자가 결과에 이의를 제기했어요. 예매 내역 등 증빙을 올리면 운영팀이 보고 최종 결과를 정해요.</p>
+          <TxCard title="추가 자료">
+            <p className="prose">
+              {disputed
+                ? '이용자가 결과에 이의를 제기했어요. 예매 내역·시도 화면 등 자료를 올리면 운영팀이 보고 최종 결과를 정해요.'
+                : '이용자가 결과를 확인하고 있어요. 시도 증빙이 반려됐거나 더 보여 줄 자료가 있으면 올려 주세요. 이용자가 바로 볼 수 있고, 이의가 생기면 운영팀 판단 자료가 돼요.'}
+            </p>
             {evidenceList}
             {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 다른 파일로 다시 올려 주세요.</Notice>}
             <form noValidate onSubmit={submitResultEvidence}>
@@ -200,7 +206,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
               <div className="tx-form-footer">
                 <span role="status">{progress}</span>
                 <button type="submit" className="btn primary" disabled={pending || !files.length}>
-                  결과 증빙 올리기
+                  추가 자료 올리기
                 </button>
               </div>
             </form>
