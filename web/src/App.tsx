@@ -5,6 +5,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { RequireAuth } from './auth/RequireAuth';
 import { AgentCard, FavoriteButton } from './discovery/AgentCard';
 import { FavoritesProvider, useFavorites } from './discovery/favorites';
+import { AdminLayout } from './layout/AdminLayout';
 import { AppLayout } from './layout/AppLayout';
 import { AgentActivityPage, UserActivityPage } from './pages/ActivityPage';
 import { ApiCheckPage } from './pages/ApiCheckPage';
@@ -102,13 +103,16 @@ export default function App() {
           <FavoritesProvider>
           <BrowserRouter>
             <Routes>
+              {/* 관리자 화면은 이용자·도우미 헤더 없이 관리자 전용 셸로 보여 준다. */}
+              <Route element={<AdminLayout />}>
+                <Route path="admin" element={auth(<AdminPage />)} />
+              </Route>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />
                 <Route path="agents/:id" element={auth(<ProfilePage />)} />
                 <Route path="login" element={<LoginPage />} />
                 <Route path="signup" element={<SignupPage />} />
                 <Route path="dev/api" element={<ApiCheckPage />} />
-                <Route path="admin" element={auth(<AdminPage />)} />
                 <Route path="favorites" element={auth(<FavoritesPage />)} />
                 <Route path="quote/:id" element={auth(<QuotePage />)} />
                 <Route path="request-sent/:id" element={auth(<RequestSentPage />)} />
