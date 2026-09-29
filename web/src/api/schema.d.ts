@@ -431,7 +431,7 @@ export interface paths {
         put?: never;
         /**
          * 대행자가 처리 결과 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED 또는 APPROVED여야 합니다. 제출 후 24시간 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다.
          */
         post: operations["result"];
         delete?: never;
@@ -449,13 +449,13 @@ export interface paths {
         };
         /**
          * 거래 당사자의 결과 증빙 조회
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
          */
         get: operations["list_1"];
         put?: never;
         /**
          * 도우미의 결과 증빙 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
          */
         post: operations["submit"];
         delete?: never;
@@ -475,7 +475,7 @@ export interface paths {
         put?: never;
         /**
          * 이용자가 결과 확인
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 양측 결과 일치 시 COMPLETED, 불일치 시 DISPUTED입니다. 결제 정산·지급 완료를 의미하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자가 도우미 결과에 답합니다. agreed=true면 도우미 결과로 COMPLETED, agreed=false면 DISPUTED(note에 불복 사유 필수)이고 관리자가 확정합니다. 이전 형식(result만 전송)은 도우미 결과와 같으면 동의, 다르면 불복입니다. 결제 정산·지급 완료를 의미하지 않습니다.
          */
         post: operations["confirm"];
         delete?: never;
@@ -915,7 +915,7 @@ export interface paths {
         put?: never;
         /**
          * 경력·활동·사업자 증빙 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
          */
         post: operations["submit_2"];
         delete?: never;
@@ -999,7 +999,7 @@ export interface paths {
         put?: never;
         /**
          * 경력·활동·사업자·결과 증빙 업로드 URL 발급
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. data={id,storageKey,uploadUrl,method,requiredHeaders,headers,expiresAt}. uploadUrl로 PUT할 때 requiredHeaders(헤더명→문자열, /api/files/upload-url과 같은 형식)를 그대로 보내야 서명이 맞습니다. 파일 크기는 sizeBytes와 같아야 합니다. headers는 같은 내용의 배열 값 형식(이전 호환용)입니다.
          */
         post: operations["upload"];
         delete?: never;
@@ -1238,8 +1238,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * 분쟁 결과 확정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
+         * 분쟁·이용자 무응답 결과 확정
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 24시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다.
          */
         post: operations["resolve"];
         delete?: never;
@@ -1383,7 +1383,7 @@ export interface paths {
         put?: never;
         /**
          * 증빙 파일 승인·차단 및 검토 기록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
          */
         post: operations["review"];
         delete?: never;
@@ -1877,7 +1877,7 @@ export interface paths {
         };
         /**
          * 내 신청 경력·활동·사업자 증빙 조회
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다.
          */
         get: operations["list_3"];
         put?: never;
@@ -2064,6 +2064,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/requests/{requestId}/result/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 요청별 결과 증빙(관리자)
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
+         */
+        get: operations["resultEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}/attempt-evidences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 요청별 시도 증빙 이력(관리자)
+         * @description 결과 분쟁 또는 이용자 무응답 결과를 판단할 때 쓰는 해당 거래의 ATTEMPT 이력입니다. revision 내림차순이며 BLOCKED가 아닌 첨부에 5분 유효 URL을 포함합니다. Cache-Control: no-store입니다.
+         */
+        get: operations["getRequestAttemptEvidences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/result-review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 결과 분쟁·이용자 무응답(24시간) 목록
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,...}] 오래된 순. 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
+         */
+        get: operations["resultReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/requests/policy-pending": {
         parameters: {
             query?: never;
@@ -2173,7 +2233,7 @@ export interface paths {
         };
         /**
          * 검토 대기 증빙 파일 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["pending_1"];
         put?: never;
@@ -2193,7 +2253,7 @@ export interface paths {
         };
         /**
          * 관리자 전용 증빙 검토 다운로드 URL
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["preview"];
         put?: never;
@@ -2253,7 +2313,7 @@ export interface paths {
         };
         /**
          * 심사 대상 증빙 조회
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인하며, 관리자 검토 전에는 일반 열람 URL이 없습니다. 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과는 RESULT로 고정합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["evidence"];
         put?: never;
@@ -2665,6 +2725,11 @@ export interface components {
         EvidenceInput: {
             description?: string;
             storageKeys: string[];
+        };
+        Confirm: {
+            agreed?: boolean;
+            result?: components["schemas"]["RequestResult"];
+            note?: string;
         };
         Reason: {
             reason: string;
@@ -3609,6 +3674,10 @@ export interface components {
          */
         PaymentReviewType: "EVENT" | "PAYMENT_FLAG" | "PAYMENT_STUCK" | "REFUND_STUCK";
         Review: {
+            approved?: boolean;
+            note: string;
+        };
+        AgentProfileReview: {
             approved?: boolean;
             note: string;
         };
@@ -6424,7 +6493,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Result"];
+                "application/json": components["schemas"]["Confirm"];
             };
         };
         responses: {
@@ -10608,7 +10677,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Review"];
+                "application/json": components["schemas"]["AgentProfileReview"];
             };
         };
         responses: {
@@ -13120,6 +13189,232 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseReviewResponse"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    resultEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    getRequestAttemptEvidences: {
+        parameters: {
+            query?: {
+                /**
+                 * @description 0부터 시작하는 페이지 번호
+                 * @example 0
+                 */
+                page?: number;
+                /**
+                 * @description 페이지 크기 (1~100)
+                 * @example 20
+                 */
+                size?: number;
+            };
+            header?: never;
+            path: {
+                /**
+                 * @description 요청 ID
+                 * @example 1
+                 */
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description 시도 증빙 이력 */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListEvidenceSubmissionResponse"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description ADMIN 권한 없음 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 요청 없음 */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    resultReview: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
                 };
             };
             /** @description 입력 형식·범위 오류 */

@@ -4,7 +4,7 @@ import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
 import { useLoad } from '../transactions/model';
-import { Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
+import { EvidenceFileNames, EvidenceThumb, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -20,7 +20,7 @@ const tabs: [Tab, string][] = [
   ['profiles', '도우미 심사'],
   ['attempts', '시도 증빙 대리 승인'],
   ['settlements', '부분성공 정산'],
-  ['requests', '분쟁·만료'],
+  ['requests', '결과 확인·만료'],
   ['payments', '결제 확인'],
   ['reports', '신고'],
   ['reviews', '후기'],
@@ -185,7 +185,7 @@ function PolicyTab() {
             <Item
               key={String(n(row, 'requestId', 'id'))}
               raw={row}
-              title={`#${n(row, 'requestId', 'id')} ${s(row, 'targetName')}`}
+              title={`#${n(row, 'requestId', 'id')} ${s(row, 'submittedTargetName', 'targetName')}`}
               rows={[
                 ['분야', categoryNames[s(row, 'serviceCategory')] ?? s(row, 'serviceCategory')],
                 ['예매처', s(row, 'platformName', 'platform.name', 'otherPlatformName')],
@@ -495,6 +495,85 @@ function SettlementsTab() {
 }
 
 // ── 분쟁 확정·요청 만료 ─────────────────────────────────────
+// ── 결과 분쟁·이용자 무응답 ─────────────────────────────────
+const resultLabels: Record<string, string> = { SUCCESS: '성공', PARTIAL: '부분 성공', FAILURE: '실패' };
+function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
+  const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })));
+  const { pending, run } = useAction();
+  const [shown, setShown] = useState<{ id: number; rows: [string, Raw][] } | null>(null);
+  const showEvidence = (id: number) =>
+    run(async () => {
+      const [results, attempts] = await Promise.all([
+        unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/result/evidence', { params: { path: { requestId: id } } })),
+        unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })),
+      ]);
+      setShown({ id, rows: [...list(results).map((e) => ['결과 증빙', e] as [string, Raw]), ...list(attempts).map((e) => ['시도 증빙', e] as [string, Raw])] });
+    });
+  return (
+    <>
+      <ListBlock
+        title="결과 확인이 필요한 요청"
+        desc="이용자가 이의를 제기했거나, 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청이에요. 증빙을 보고 아래에서 결과를 확정해요."
+        load={load}
+        reload={reload}
+        empty="확인할 요청이 없어요."
+      >
+        {(rows) =>
+          rows.map((row) => {
+            const id = n(row, 'id', 'requestId')!;
+            const overdue = s(row, 'reviewReason') === 'CONFIRMATION_OVERDUE';
+            return (
+              <Item
+                key={id}
+                raw={row}
+                title={`#${id} ${s(row, 'submittedTargetName', 'targetName')} · ${overdue ? '이용자 24시간 무응답' : '이의 제기'}`}
+                rows={[
+                  ['도우미 결과', `${resultLabels[s(row, 'agentResult')] ?? s(row, 'agentResult')} · ${s(row, 'agentResultNote')}`],
+                  ['실제 확보 내용', s(row, 'actualOutcomeDescription')],
+                  ['결과 등록 시각', utcToLocal(s(row, 'agentResultSubmittedAt'))],
+                  ['이의 사유', s(row, 'disputeNote')],
+                  ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
+                ]}
+              >
+                <button type="button" className="btn secondary" disabled={pending} onClick={() => showEvidence(id)}>
+                  증빙 보기
+                </button>
+                <button type="button" className="btn primary" onClick={() => onPick(id)}>
+                  결과 확정
+                </button>
+              </Item>
+            );
+          })
+        }
+      </ListBlock>
+      {shown && (
+        <Modal title={`요청 #${shown.id} 증빙`} onClose={() => setShown(null)}>
+          {shown.rows.length === 0 && <p className="prose">올라온 증빙이 없어요. 이의 제기 건이면 도우미가 결과 증빙을 추가할 수 있어요.</p>}
+          <div className="tx-file-list">
+            {shown.rows.map(([kind, e], i) => {
+              const files = list(pick(e, 'attachments'));
+              return (
+                <div key={i} className="tx-file-view">
+                  <EvidenceThumb files={files} />
+                  <div>
+                    <strong>
+                      {kind} · {n(e, 'revision') ?? 1}차 {s(e, 'status') ? `· ${s(e, 'status')}` : ''}
+                    </strong>
+                    <small>{s(e, 'description') || '설명 없음'}</small>
+                    <small>
+                      <EvidenceFileNames files={files} status={(f) => (str(f.scanStatus) === 'BLOCKED' ? '차단됨' : '열람 가능')} />
+                    </small>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 function RequestsTab() {
   const { pending, run } = useAction();
   const [requestId, setRequestId] = useState('');
@@ -508,7 +587,7 @@ function RequestsTab() {
     if (!Number(requestId) || !note.trim()) return;
     const ok = await run(
       () => unwrap(api.POST('/api/admin/requests/{requestId}/resolve', { params: { path: { requestId: Number(requestId) } }, body: { result, note: note.trim(), actualOutcomeDescription: outcome.trim() || undefined } })),
-      '분쟁 결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.',
+      '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.',
     );
     if (ok) {
       setNote('');
@@ -518,9 +597,15 @@ function RequestsTab() {
 
   return (
     <>
-      <section className="content-card">
-        <h2>분쟁 결과 확정</h2>
-        <p className="record-note">도우미와 이용자의 결과가 달라 분쟁(DISPUTED)이 된 요청의 최종 결과를 정해요. 명세에 분쟁 목록 API가 없어 요청 번호를 직접 입력해요.</p>
+      <ResultReviewList
+        onPick={(id) => {
+          setRequestId(String(id));
+          document.getElementById('admin-resolve-form')?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
+      <section className="content-card" id="admin-resolve-form">
+        <h2>결과 확정</h2>
+        <p className="record-note">이의가 제기된(DISPUTED) 요청, 또는 도우미 결과 등록 후 24시간 동안 이용자가 답하지 않은 요청의 최종 결과를 정해요. 위 목록에서 '결과 확정'을 누르면 번호가 채워져요. 본인이 당사자인 거래는 확정할 수 없어요.</p>
         <form noValidate onSubmit={resolve}>
           <div className="form-grid">
             <Field label="요청 번호" required>

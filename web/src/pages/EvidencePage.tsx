@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { fetchDetail, latestAgreement, resultNames, uploadAttemptFile, uploadResultFile, useLoad, type RequestResult } from '../transactions/model';
-import { Field, FilePicker, Notice, Rows, TxCard, useAction, utcToLocal } from '../transactions/ui';
-import { Icon } from '../ui/Icon';
+import { EvidenceFileNames, EvidenceThumb, Field, FilePicker, Notice, Rows, TxCard, useAction, utcToLocal } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
 
 // 프로토타입 transactions.js의 attachmentPage(). 도우미 전용.
@@ -13,7 +12,8 @@ import { PageTitle } from '../ui/PageTitle';
 //   ① 결과 증빙 업로드(/api/evidence-files/upload-url, RESULT) → POST /result/evidence (IN_PROGRESS, 결과 제출 전)
 //   ② 운영팀 파일 검토로 첨부가 CLEAN
 //   ③ POST /result {result, note} — 최신 결과 증빙 첨부가 모두 CLEAN이어야 하고 한 번만 제출
-const scanNames: Record<string, string> = { PENDING: '운영팀 검토 전', CLEAN: '검토 완료', BLOCKED: '차단됨' };
+// 결과 증빙은 운영팀 파일 검토 없이 이용자에게 바로 보인다(차단된 파일만 제외).
+const scanNames: Record<string, string> = { PENDING: '이용자에게 공개', CLEAN: '이용자에게 공개', BLOCKED: '차단됨' };
 
 function latestOf(rows: Raw[]) {
   return [...rows].sort((a, b) => (num(pick(b, 'revision')) ?? 0) - (num(pick(a, 'revision')) ?? 0) || String(pick(b, 'submittedAt') ?? '').localeCompare(String(pick(a, 'submittedAt') ?? '')))[0];
@@ -57,13 +57,18 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
       </div>
     );
 
-  const { request: r, stage, agreements, resultEvidences } = load.data;
-  if (stage !== 'in_progress') return <Navigate to={`/requests/${requestId}`} replace />;
+  const { request: r, stage, agreements, resultEvidences, evidences } = load.data;
+  // 분쟁 중에는 도우미가 결과 증빙만 추가할 수 있다(운영팀 판단 자료).
+  const disputed = isResult && stage === 'disputed';
+  if (stage !== 'in_progress' && !disputed) return <Navigate to={`/requests/${requestId}`} replace />;
   const a = latestAgreement(agreements);
   const path = { params: { path: { requestId } } };
   const latestResult = latestOf(resultEvidences);
   const scan = scanState(latestResult);
-  const canSubmitResult = scan === 'clean' || scan === 'unknown';
+  // 실패 결과는 최신 시도 증빙이 제출(또는 승인)돼 있어야 낼 수 있다. 성공·부분성공은 증빙 없이도 된다.
+  const latestAttempt = [...evidences].sort((x, y) => (y.revision ?? 0) - (x.revision ?? 0))[0];
+  const attemptOnRecord = latestAttempt?.status === 'SUBMITTED' || latestAttempt?.status === 'APPROVED';
+  const canSubmitResult = result !== 'FAILURE' || attemptOnRecord;
 
   async function upload(uploader: (f: File) => Promise<string>) {
     const keys: string[] = [];
@@ -91,7 +96,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     const ok = await run(async () => {
       const storageKeys = await upload(uploadResultFile);
       await unwrap(api.POST('/api/requests/{requestId}/result/evidence', { ...path, body: { description: description.trim() || undefined, storageKeys } }));
-    }, '결과 증빙을 올렸어요. 운영팀 파일 검토가 끝나면 결과를 제출할 수 있어요.');
+    }, disputed ? '결과 증빙을 올렸어요. 운영팀이 확인해 결과를 정해요.' : '결과 증빙을 올렸어요. 이용자도 바로 볼 수 있어요.');
     setProgress('');
     if (ok) {
       setFiles([]);
@@ -162,20 +167,22 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
 
   return (
     <>
-      <PageTitle title="예매 결과 등록" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
+      <PageTitle title={disputed ? '결과 증빙 추가' : '예매 결과 등록'} crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
       <div className="detail-layout tx-layout">
         <div>
-          <TxCard title="1. 결과 증빙">
-            <p className="prose">예매 내역이나 실패 화면을 올려 주세요. 운영팀이 파일을 검토한 뒤 결과를 제출할 수 있어요.</p>
+          <TxCard title={disputed ? '결과 증빙' : '1. 결과 증빙 (선택)'}>
+            <p className="prose">
+              {disputed
+                ? '이용자가 결과에 이의를 제기했어요. 예매 내역 등 증빙을 올리면 운영팀이 보고 최종 결과를 정해요.'
+                : '예매 내역 화면을 올려 두면 이용자가 결과를 확인할 때 함께 봐요. 이의가 생기면 운영팀 판단 자료가 돼요.'}
+            </p>
             {resultEvidences.length > 0 && (
               <div className="tx-file-list">
                 {resultEvidences.map((e, i) => {
                   const attached = list(pick(e, 'attachments'));
                   return (
                     <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
-                      <div className="tx-file-thumb">
-                        <Icon name="file" size={24} />
-                      </div>
+                      <EvidenceThumb files={attached} />
                       <div>
                         <strong>
                           {num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}
@@ -183,9 +190,11 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                         </strong>
                         <small>{[str(pick(e, 'description')), utcToLocal(str(pick(e, 'submittedAt')) ?? '')].filter(Boolean).join(' · ') || '설명 없음'}</small>
                         <small>
-                          {attached.length
-                            ? attached.map((f) => `${str(f.originalName) ?? '파일'} · ${scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? '검토 상태 미확인'}`).join(', ')
-                            : scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? '검토 상태 미확인'}
+                          {attached.length ? (
+                            <EvidenceFileNames files={attached} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? '검토 상태 미확인'} />
+                          ) : (
+                            scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? '검토 상태 미확인'
+                          )}
                         </small>
                       </div>
                     </div>
@@ -193,8 +202,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                 })}
               </div>
             )}
-            {scan === 'pending' && <Notice>운영팀이 파일을 검토하고 있어요. 검토가 끝나면 아래에서 결과를 제출할 수 있어요.</Notice>}
-            {scan === 'blocked' && <Notice tone="error">검토에서 차단된 파일이 있어요. 다른 파일로 다시 올려 주세요.</Notice>}
+            {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 이용자에게 보이지 않으니 다른 파일로 다시 올려 주세요.</Notice>}
             <form noValidate onSubmit={submitResultEvidence}>
               <Field label="설명">
                 <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 예매 완료 화면, 좌석 1층 B구역 8열" />
@@ -208,9 +216,9 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
               </div>
             </form>
           </TxCard>
+          {!disputed && (
           <form id="tx-evidence-form" noValidate onSubmit={submitResult}>
             <TxCard title="2. 예매 결과">
-              {!latestResult && <Notice>먼저 결과 증빙을 올려 주세요.</Notice>}
               <Field label="예매 결과" required>
                 <select value={result} onChange={(e) => setResult(e.target.value as RequestResult)}>
                   {Object.entries(resultNames).map(([v, t]) => (
@@ -220,21 +228,27 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                   ))}
                 </select>
               </Field>
+              {result === 'FAILURE' && !attemptOnRecord && (
+                <Notice tone="error">
+                  실패 결과는 시도 증빙이 있어야 제출할 수 있어요. <Link to={`/requests/${requestId}/evidence`}>시도 증빙 올리기</Link>
+                </Notice>
+              )}
               <Field label={result === 'FAILURE' ? '실패 사유' : '결과 설명'} required>
                 <textarea name="note" rows={3} required maxLength={10000} />
               </Field>
               <Field label="실제 확보 내용">
                 <input name="outcome" maxLength={10000} placeholder="예: 1층 5구역 8열, 연석 2매" />
               </Field>
-              <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 같은 결과로 확인하면 거래가 완료되고, 다르면 운영팀이 확인해요.</Notice>
+              <Notice>결과는 한 번만 제출할 수 있어요. 이용자가 동의하면 거래가 완료되고, 이의를 제기하면 운영팀이 증빙을 보고 정해요. 이용자가 24시간 동안 답하지 않으면 운영팀이 확정해요.</Notice>
               <div className="tx-form-footer">
-                <span role="status">{!latestResult ? '' : canSubmitResult ? '' : '결과 증빙 검토를 기다리고 있어요.'}</span>
-                <button type="submit" className="btn primary" disabled={pending || !latestResult || !canSubmitResult}>
+                <span role="status" />
+                <button type="submit" className="btn primary" disabled={pending || !canSubmitResult}>
                   {pending ? '제출 중…' : '예매 결과 제출'}
                 </button>
               </div>
             </TxCard>
           </form>
+          )}
         </div>
         {conditions}
       </div>

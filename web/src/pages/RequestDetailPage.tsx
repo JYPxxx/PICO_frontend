@@ -16,11 +16,10 @@ import {
   type Agreement,
   type Detail,
   type Evidence,
-  type RequestResult,
   type Role,
   type TxRequest,
 } from '../transactions/model';
-import { Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
+import { EvidenceFileNames, EvidenceThumb, Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
@@ -31,7 +30,8 @@ import { money } from '../ui/format';
 
 const roundNames: Record<string, string> = { PRESALE: '선예매', GENERAL: '일반 예매', ADDITIONAL: '추가 예매' };
 const evidenceNames: Record<string, string> = { DRAFT: '작성 중', SUBMITTED: '확인 대기', APPROVED: '승인', REJECTED: '반려' };
-const scanNames: Record<string, string> = { PENDING: '운영팀 검토 전', CLEAN: '검토 완료', BLOCKED: '차단됨' };
+// 결과 증빙은 운영팀 파일 검토 없이 거래 당사자에게 보인다(차단된 파일만 제외).
+const scanNames: Record<string, string> = { PENDING: '첨부됨', CLEAN: '첨부됨', BLOCKED: '차단됨' };
 const paymentNames: Record<string, string> = {
   PENDING: '입금 대기',
   PROCESSING: '확인 중',
@@ -181,44 +181,52 @@ function ConfirmModal({ title, children, submitText, onClose, onConfirm }: { tit
   );
 }
 
-function ResultModal({ r, onClose, onSubmit }: { r: TxRequest; onClose: () => void; onSubmit: (result: RequestResult, note: string) => Promise<unknown> }) {
-  const [result, setResult] = useState<RequestResult>(r.agentResult ?? 'SUCCESS');
+function ResultModal({ r, onClose, onSubmit }: { r: TxRequest; onClose: () => void; onSubmit: (agreed: boolean, note: string) => Promise<unknown> }) {
+  const [agreed, setAgreed] = useState(true);
   const [note, setNote] = useState('');
   const [pending, setPending] = useState(false);
+  const missingReason = !agreed && !note.trim();
   return (
     <Modal title="예매 결과 확인" onClose={onClose}>
       <form
         noValidate
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!note.trim()) return;
+          if (missingReason) return;
           setPending(true);
-          await onSubmit(result, note.trim());
+          await onSubmit(agreed, note.trim());
           setPending(false);
         }}
       >
         <p className="prose">
-          도우미는 <strong>{r.agentResult ? resultNames[r.agentResult] : '-'}</strong>(으)로 등록했어요. 내가 확인한 결과를 선택해 주세요. 결과가 같으면 거래가 완료되고, 다르면 운영팀이 확인해요.
+          도우미는 <strong>{r.agentResult ? resultNames[r.agentResult] : '-'}</strong>(으)로 등록했어요. 결과 증빙과 내용을 확인하고 동의하거나 이의를 제기해 주세요.
         </p>
-        <Field label="내가 확인한 결과" required>
-          <select value={result} onChange={(e) => setResult(e.target.value as RequestResult)}>
-            {Object.entries(resultNames).map(([v, t]) => (
-              <option key={v} value={v}>
-                {t}
-              </option>
-            ))}
-          </select>
+        <fieldset className="tx-methods">
+          <legend>결과 확인</legend>
+          <label>
+            <input type="radio" name="agreed" checked={agreed} onChange={() => setAgreed(true)} />
+            <span>
+              <strong>동의해요</strong>
+              <small>도우미가 등록한 결과로 거래가 완료돼요.</small>
+            </span>
+          </label>
+          <label>
+            <input type="radio" name="agreed" checked={!agreed} onChange={() => setAgreed(false)} />
+            <span>
+              <strong>이의가 있어요</strong>
+              <small>운영팀이 증빙을 보고 최종 결과를 정해요. 증빙이 없으면 도우미에게 제출을 요청해요.</small>
+            </span>
+          </label>
+        </fieldset>
+        <Field label={agreed ? '확인 메모' : '이의 사유'} required={!agreed}>
+          <textarea rows={3} required={!agreed} maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={agreed ? '선택 입력' : '예: 안내받은 좌석과 실제 예매 좌석이 달라요.'} />
         </Field>
-        <Field label="확인 내용" required>
-          <textarea rows={3} required maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="예: 안내받은 좌석으로 예매된 것을 확인했어요." />
-        </Field>
-        {result !== r.agentResult && <Notice tone="error">도우미가 등록한 결과와 달라요. 제출하면 운영팀이 증빙을 검토해 결과를 확정해요.</Notice>}
         <div className="modal-actions">
           <button type="button" className="btn secondary" onClick={onClose}>
             돌아가기
           </button>
-          <button type="submit" className="btn primary" disabled={!note.trim() || pending}>
-            {pending ? '처리 중…' : '결과 확인 완료'}
+          <button type="submit" className="btn primary" disabled={missingReason || pending}>
+            {pending ? '처리 중…' : agreed ? '결과에 동의' : '이의 제기'}
           </button>
         </div>
       </form>
@@ -410,9 +418,23 @@ export function RequestDetailPage() {
           <Notice>도우미가 예매를 진행하고 있어요. 올라온 시도 증빙을 확인해 주세요.</Notice>
         );
       case 'result_submitted':
-        return agent ? <Notice>이용자가 결과를 확인하고 있어요.</Notice> : btn('예매 결과 확인하기', () => setDialog('result'));
+        return agent ? (
+          <Notice>이용자가 결과를 확인하고 있어요. 24시간 동안 답이 없으면 운영팀이 확정해요.</Notice>
+        ) : (
+          <>
+            {btn('예매 결과 확인하기', () => setDialog('result'))}
+            <Notice>24시간 안에 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정해요.</Notice>
+          </>
+        );
       case 'disputed':
-        return <Notice>양쪽 결과가 달라 운영팀이 확인하고 있어요.</Notice>;
+        return agent ? (
+          <>
+            <Notice>이용자가 결과에 이의를 제기해 운영팀이 확인하고 있어요. 증빙이 있으면 올려 주세요.</Notice>
+            {go(`/requests/${r.id}/result`, '결과 증빙 추가')}
+          </>
+        ) : (
+          <Notice>이의를 접수했어요. 운영팀이 증빙을 보고 최종 결과를 정해요.</Notice>
+        );
       case 'completed':
         if (agent || d.review) return <Notice tone="success">{d.review ? '이용자가 거래 후기를 남겼어요.' : '거래 결과 확인을 완료했어요.'}</Notice>;
         // 가이드 12-1: 거래당 후기 1개, 삭제해도 다시 쓸 수 없다(삭제된 후기는 조회되지 않아 409로 안내된다).
@@ -536,22 +558,22 @@ export function RequestDetailPage() {
                 const files = list(pick(e, 'attachments'));
                 return (
                   <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
-                    <div className="tx-file-thumb">
-                      <Icon name="file" size={24} />
-                    </div>
+                    <EvidenceThumb files={files} />
                     <div>
                       <strong>{num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}</strong>
                       <small>{str(pick(e, 'description')) || '설명 없음'}</small>
                       <small>
-                        {files.length
-                          ? files.map((f) => `${str(f.originalName) ?? '파일'} · ${scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus)}`).join(', ')
-                          : scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? ''}
+                        {files.length ? (
+                          <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
+                        ) : (
+                          scanNames[str(pick(e, 'scanStatus')) ?? ''] ?? ''
+                        )}
                       </small>
                     </div>
                   </div>
                 );
               })}
-              <p className="record-note">결과 증빙은 운영팀 파일 검토를 마쳐야 결과를 제출할 수 있어요.</p>
+              <p className="record-note">파일 이름을 누르면 원본을 받을 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과를 정해요.</p>
             </TxCard>
           )}
 
@@ -752,8 +774,8 @@ export function RequestDetailPage() {
         <ResultModal
           r={r}
           onClose={close}
-          onSubmit={(result, note) =>
-            act(() => unwrap(api.POST('/api/requests/{requestId}/result/confirm', { ...path, body: { result, note } })), result === r.agentResult ? '결과 확인을 완료했어요.' : '결과가 달라 운영팀에 확인을 요청했어요.')
+          onSubmit={(agreed, note) =>
+            act(() => unwrap(api.POST('/api/requests/{requestId}/result/confirm', { ...path, body: { agreed, note: note || undefined } })), agreed ? '결과 확인을 완료했어요.' : '이의를 접수했어요. 운영팀이 확인해 결과를 정해요.')
           }
         />
       )}
