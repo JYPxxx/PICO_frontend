@@ -413,10 +413,15 @@ export function RequestDetailPage() {
         return agent ? (
           <>
             {go(`/requests/${r.id}/result`, '결과 등록')}
-            {(!latestEvidence || latestEvidence.status === 'REJECTED') && go(`/requests/${r.id}/evidence`, latestEvidence ? '시도 증빙 다시 올리기' : '시도 증빙 올리기', 'secondary')}
+            {(!latestEvidence || latestEvidence.status === 'REJECTED') && (
+              <>
+                {go(`/requests/${r.id}/evidence`, latestEvidence ? '시도 증빙 다시 올리기 (착수비 먼저 받기)' : '시도 증빙 올리기 (착수비 먼저 받기)', 'secondary')}
+                <p className="record-note">선택 사항이에요. 올리지 않아도 결과가 확정되면 착수비가 함께 지급돼요.</p>
+              </>
+            )}
           </>
         ) : (
-          <Notice>도우미가 예매를 진행하고 있어요. 올라온 시도 증빙을 확인해 주세요.</Notice>
+          <Notice>도우미가 예매를 진행하고 있어요. 시도 증빙이 올라오면 확인해 주세요.</Notice>
         );
       case 'result_submitted':
         return agent ? (
@@ -540,7 +545,7 @@ export function RequestDetailPage() {
                     </strong>
                     <strong>{money(finalized.upfrontFeeKrw + finalized.successFeeKrw + finalized.safetyFeeKrw)}원</strong>
                   </div>
-                  <Notice>결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되면, 성공보수는 결과가 성공으로 확정되면 도우미에게 지급돼요. 이용료는 환불되지 않아요.</Notice>
+                  <Notice>결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면, 성공보수는 결과가 성공으로 확정되면 도우미에게 지급돼요. 이용료는 환불되지 않아요.</Notice>
                   {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus)} reload={reload} />}
                 </>
               )}
@@ -619,7 +624,7 @@ export function RequestDetailPage() {
                   </button>
                 </div>
               )}
-              <p className="record-note">착수비는 시도 증빙이 승인된 뒤 지급 대상이 돼요.</p>
+              <p className="record-note">시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인하지 않아도 결과가 확정되면 지급돼요.</p>
             </TxCard>
           )}
 
@@ -775,8 +780,8 @@ export function RequestDetailPage() {
         </ReasonModal>
       )}
       {dialog === 'start' && (
-        <ConfirmModal title="예매를 시작할까요?" submitText="착수하기" onClose={close} onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/start', path)), '착수했어요. 시도 증빙과 결과를 등록해 주세요.')}>
-          <p className="prose">착수하면 거래가 진행 중으로 바뀌어요. 예매를 시도한 화면은 시도 증빙으로 올려 주세요. 시도 증빙이 승인되어야 착수비가 지급돼요.</p>
+        <ConfirmModal title="예매를 시작할까요?" submitText="착수하기" onClose={close} onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/start', path)), '착수했어요. 예매를 마치면 결과를 등록해 주세요.')}>
+          <p className="prose">착수하면 거래가 진행 중으로 바뀌어요. 착수비를 결과 전에 받으려면 예매를 시도한 화면을 시도 증빙으로 올려 주세요. 올리지 않아도 결과가 확정되면 착수비가 지급돼요.</p>
         </ConfirmModal>
       )}
       {dialog === 'result' && (
