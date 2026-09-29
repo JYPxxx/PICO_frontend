@@ -412,6 +412,11 @@ export function RequestDetailPage() {
       case 'in_progress':
         return agent ? (
           <>
+            {latestEvidence?.status === 'REJECTED' && (
+              <Notice tone="error">
+                이용자가 시도 증빙을 반려했어요{latestEvidence.reviewNote ? ` (사유: ${latestEvidence.reviewNote})` : ''}. 예매를 마쳤다면 바로 결과를 등록하면 돼요. 실패도 반려된 증빙으로 등록할 수 있고, 이용자가 동의하지 않으면 운영팀이 판단해요.
+              </Notice>
+            )}
             {go(`/requests/${r.id}/result`, '결과 등록')}
             {(!latestEvidence || latestEvidence.status === 'REJECTED') && (
               <>
@@ -640,7 +645,7 @@ export function RequestDetailPage() {
               <p className="record-note">
                 {agent
                   ? latestEvidence?.status === 'REJECTED'
-                    ? '반려 사유를 보고 다시 올려 주세요. 실패로 결과를 등록하려면 확인 대기나 승인 상태의 시도 증빙이 있어야 해요. 반려돼도 결과가 확정되면 착수비는 지급돼요.'
+                    ? '반려 사유를 반박할 자료가 있으면 다시 올려 주세요(선택). 반려된 증빙으로도 결과를 등록할 수 있고, 결과가 확정되면 착수비는 지급돼요.'
                     : '이용자가 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인되지 않아도 결과가 확정되면 지급돼요.'
                   : '시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인하지 않아도 결과가 확정되면 지급돼요.'}
               </p>

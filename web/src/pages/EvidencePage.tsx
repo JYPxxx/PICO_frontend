@@ -65,9 +65,10 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
   const path = { params: { path: { requestId } } };
   const latestResult = latestOf(resultEvidences);
   const scan = scanState(latestResult);
-  // 실패 결과는 최신 시도 증빙이 제출(또는 승인)돼 있어야 낼 수 있다. 성공·부분성공은 증빙 없이도 된다.
+  // 실패 결과는 최신 시도 증빙이 제출·승인·반려 중 하나면 낼 수 있다(반려돼도 가능). 성공·부분성공은 증빙 없이도 된다.
   const latestAttempt = [...evidences].sort((x, y) => (y.revision ?? 0) - (x.revision ?? 0))[0];
-  const attemptOnRecord = latestAttempt?.status === 'SUBMITTED' || latestAttempt?.status === 'APPROVED';
+  const attemptRejected = latestAttempt?.status === 'REJECTED';
+  const attemptOnRecord = latestAttempt?.status === 'SUBMITTED' || latestAttempt?.status === 'APPROVED' || attemptRejected;
 
   async function upload(uploader: (f: File) => Promise<string>) {
     const keys: string[] = [];
@@ -227,8 +228,8 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     const ok = await run(async () => {
       if (files.length) {
         // 증빙을 먼저 올린다. 결과 제출이 실패해도 올린 증빙은 남으므로 파일 선택을 비워 중복 업로드를 막는다.
-        // 시도 증빙은 반려됐을 때만 새로 낼 수 있어서, 이미 올라가 있으면 추가 자료는 결과 증빙으로 올린다.
-        if (needAttemptFile) {
+        // 시도 증빙은 없거나 반려됐을 때만 새로 낼 수 있다. 확인 대기·승인 상태면 추가 자료는 결과 증빙으로 올린다.
+        if (needAttemptFile || (failure && attemptRejected)) {
           const keys = await upload(uploadAttemptFile);
           await unwrap(api.POST('/api/requests/{requestId}/attempt-evidences', { ...path, body: { description: description.trim() || null, attachments: keys.map((storageKey, sortOrder) => ({ storageKey, sortOrder })) } }));
         } else {
@@ -267,7 +268,18 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
 
           {failure ? (
             <TxCard title="2. 시도 증빙 (필수)">
-              {attemptOnRecord ? (
+              {attemptRejected ? (
+                <>
+                  <Notice tone="error">
+                    {latestAttempt?.revision}차 시도 증빙을 이용자가 반려했어요{latestAttempt?.reviewNote ? ` (사유: ${latestAttempt.reviewNote})` : ''}. 반려된 증빙으로도 실패를 등록할 수 있고, 이용자가 동의하지 않으면 운영팀이 반려 사유와 함께 보고 정해요.
+                  </Notice>
+                  <p className="prose">반려 사유를 반박할 자료가 있으면 새 시도 증빙으로 올려 주세요(선택). 결과와 함께 제출돼요.</p>
+                  <Field label="설명">
+                    <textarea name="evidenceDescription" rows={2} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:00 대기열 진입 화면(시각 표시 포함)" />
+                  </Field>
+                  <FilePicker files={files} onChange={setFiles} />
+                </>
+              ) : attemptOnRecord ? (
                 <>
                   <Notice tone="success">
                     {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 더 올릴 자료가 없으면 바로 제출하면 돼요.
