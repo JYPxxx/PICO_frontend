@@ -603,6 +603,7 @@ export function RequestDetailPage() {
                         {e.revision}차 제출 · {evidenceNames[e.status] ?? e.status}
                       </strong>
                       <small>{e.description || '설명 없음'}</small>
+                      {e.status === 'REJECTED' && e.reviewNote && <small>반려 사유: {e.reviewNote}</small>}
                       {files.length > 0 && (
                         <small>
                           <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
@@ -629,7 +630,20 @@ export function RequestDetailPage() {
                   </button>
                 </div>
               )}
-              <p className="record-note">시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인하지 않아도 결과가 확정되면 지급돼요.</p>
+              {agent && latestEvidence?.status === 'REJECTED' && stage === 'in_progress' && (
+                <div className="tx-request-actions">
+                  <Link className="btn secondary" to={`/requests/${r.id}/evidence`}>
+                    시도 증빙 다시 올리기
+                  </Link>
+                </div>
+              )}
+              <p className="record-note">
+                {agent
+                  ? latestEvidence?.status === 'REJECTED'
+                    ? '반려 사유를 보고 다시 올려 주세요. 실패로 결과를 등록하려면 확인 대기나 승인 상태의 시도 증빙이 있어야 해요. 반려돼도 결과가 확정되면 착수비는 지급돼요.'
+                    : '이용자가 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인되지 않아도 결과가 확정되면 지급돼요.'
+                  : '시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인하지 않아도 결과가 확정되면 지급돼요.'}
+              </p>
             </TxCard>
           )}
 
