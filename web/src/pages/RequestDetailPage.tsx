@@ -593,20 +593,25 @@ export function RequestDetailPage() {
 
           {d.evidences.length > 0 && (
             <TxCard title="예매 시도 증빙">
-              {d.evidences.map((e: Evidence) => (
-                <div key={e.evidenceId} className="tx-file-view">
-                  <div className="tx-file-thumb">
-                    <Icon name="file" size={24} />
+              {d.evidences.map((e: Evidence) => {
+                const files = (e.attachments ?? []) as unknown as Raw[];
+                return (
+                  <div key={e.evidenceId} className="tx-file-view">
+                    <EvidenceThumb files={files} />
+                    <div>
+                      <strong>
+                        {e.revision}차 제출 · {evidenceNames[e.status] ?? e.status}
+                      </strong>
+                      <small>{e.description || '설명 없음'}</small>
+                      {files.length > 0 && (
+                        <small>
+                          <EvidenceFileNames files={files} status={(f) => scanNames[str(f.scanStatus) ?? ''] ?? str(f.scanStatus) ?? ''} />
+                        </small>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <strong>
-                      {e.revision}차 제출 · {evidenceNames[e.status] ?? e.status}
-                    </strong>
-                    <small>{e.description || '설명 없음'}</small>
-                    {e.attachments && e.attachments.length > 0 && <small>첨부 {e.attachments.length}개</small>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               {!agent && latestEvidence?.status === 'SUBMITTED' && (
                 <div className="tx-request-actions">
                   <button
