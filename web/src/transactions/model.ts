@@ -51,6 +51,7 @@ export interface TxRequest {
   closeReason: string;
   agentResult?: RequestResult;
   agentResultNote: string;
+  adminResolutionNote: string;
   agentOutcome: string;
   requesterResult?: RequestResult;
   requesterResultNote: string;
@@ -96,6 +97,8 @@ export function toRequest(raw: Raw): TxRequest {
     closeReason: s('rejectReason', 'cancelReason', 'closeReason', 'reason'),
     agentResult: (s('agentResult', 'agentReportedResult', 'result.agentResult') || undefined) as RequestResult | undefined,
     agentResultNote: s('agentResultNote', 'agentNote', 'result.agentNote'),
+    // 운영팀이 분쟁·무응답 결과를 확정했을 때만 온다(이용자 동의로 완료되면 비어 있음).
+    adminResolutionNote: s('adminResolutionNote'),
     agentOutcome: s('agentActualOutcomeDescription', 'actualOutcomeDescription', 'result.actualOutcomeDescription'),
     requesterResult: (s('requesterResult', 'requesterReportedResult', 'result.requesterResult') || undefined) as RequestResult | undefined,
     requesterResultNote: s('requesterResultNote', 'requesterNote', 'result.requesterNote'),
@@ -403,8 +406,17 @@ export const uploadAttemptFile = (file: File) => uploadPrivateFile('ATTEMPT_EVID
 export const uploadReportFile = (file: File) => uploadPrivateFile('REPORT_EVIDENCE', file);
 
 export async function uploadResultFile(file: File) {
+  return uploadEvidenceFile('RESULT', file);
+}
+
+/** 분쟁 소명 첨부(비공개, 운영팀만 봄) */
+export async function uploadDisputeFile(file: File) {
+  return uploadEvidenceFile('DISPUTE', file);
+}
+
+async function uploadEvidenceFile(purpose: 'RESULT' | 'DISPUTE', file: File) {
   const target = await unwrap<Raw>(
-    api.POST('/api/evidence-files/upload-url', { body: { purpose: 'RESULT', originalName: file.name, mimeType: file.type || 'application/octet-stream', sizeBytes: file.size } }),
+    api.POST('/api/evidence-files/upload-url', { body: { purpose, originalName: file.name, mimeType: file.type || 'application/octet-stream', sizeBytes: file.size } }),
   );
   return putFile(target as Parameters<typeof putFile>[0], file);
 }

@@ -4,6 +4,7 @@ import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { findPolicy, loadPolicies } from '../api/policies';
 import { PartialSettlementCard, RefundCard, refundCase } from '../transactions/Settlement';
+import { DisputeCard } from '../transactions/Dispute';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
 import { categoryNames } from '../discovery/agent';
@@ -429,11 +430,11 @@ export function RequestDetailPage() {
       case 'disputed':
         return agent ? (
           <>
-            <Notice>이용자가 결과에 이의를 제기해 운영팀이 확인하고 있어요. 증빙이 있으면 올려 주세요.</Notice>
+            <Notice>이용자가 결과에 이의를 제기해 운영팀이 확인하고 있어요. 아래 분쟁 소명에 설명을 남기고, 예매 내역이 있으면 결과 증빙도 올려 주세요.</Notice>
             {go(`/requests/${r.id}/result`, '결과 증빙 추가')}
           </>
         ) : (
-          <Notice>이의를 접수했어요. 운영팀이 증빙을 보고 최종 결과를 정해요.</Notice>
+          <Notice>이의를 접수했어요. 아래 분쟁 소명에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 최종 결과를 정해요.</Notice>
         );
       case 'completed':
         if (agent || d.review) return <Notice tone="success">{d.review ? '이용자가 거래 후기를 남겼어요.' : '거래 결과 확인을 완료했어요.'}</Notice>;
@@ -551,6 +552,14 @@ export function RequestDetailPage() {
               <Notice>플랫폼 결제 없이 당사자끼리 정산하는 거래예요. 플랫폼은 매칭·합의·결과만 기록하고, 착수비·성공보수 지급과 환불은 하지 않아요.</Notice>
             </TxCard>
           )}
+
+          {r.adminResolutionNote && (
+            <TxCard title="운영팀 확정 사유">
+              <p className="prose" style={{ whiteSpace: 'pre-wrap' }}>{r.adminResolutionNote}</p>
+            </TxCard>
+          )}
+
+          {(r.status === 'DISPUTED' || r.adminResolutionNote) && <DisputeCard requestId={r.id} disputed={r.status === 'DISPUTED'} />}
 
           {d.resultEvidences.length > 0 && (
             <TxCard title="결과 증빙">

@@ -500,15 +500,32 @@ const resultLabels: Record<string, string> = { SUCCESS: '성공', PARTIAL: '부�
 function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })));
   const { pending, run } = useAction();
-  const [shown, setShown] = useState<{ id: number; rows: [string, Raw][] } | null>(null);
-  const showEvidence = (id: number) =>
-    run(async () => {
-      const [results, attempts] = await Promise.all([
-        unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/result/evidence', { params: { path: { requestId: id } } })),
-        unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })),
-      ]);
-      setShown({ id, rows: [...list(results).map((e) => ['결과 증빙', e] as [string, Raw]), ...list(attempts).map((e) => ['시도 증빙', e] as [string, Raw])] });
+  const [shown, setShown] = useState<{ id: number; disputed: boolean; rows: [string, Raw][]; threads: [string, Raw[]][] } | null>(null);
+  const [ask, setAsk] = useState({ party: 'REQUESTER', body: '' });
+  const loadShown = async (id: number, disputed: boolean) => {
+    const [results, attempts, threads] = await Promise.all([
+      unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/result/evidence', { params: { path: { requestId: id } } })),
+      unwrap<unknown>(api.GET('/api/admin/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })),
+      unwrap<Raw>(api.GET('/api/admin/requests/{requestId}/dispute/messages', { params: { path: { requestId: id } } })),
+    ]);
+    setShown({
+      id,
+      disputed,
+      rows: [...list(results).map((e) => ['결과 증빙', e] as [string, Raw]), ...list(attempts).map((e) => ['시도 증빙', e] as [string, Raw])],
+      threads: [
+        ['이용자', list(pick(threads, 'requester'))],
+        ['도우미', list(pick(threads, 'agent'))],
+      ],
     });
+  };
+  const showEvidence = (id: number, disputed: boolean) => run(() => loadShown(id, disputed));
+  const sendQuestion = (id: number) =>
+    run(async () => {
+      await unwrap(api.POST('/api/admin/requests/{requestId}/dispute/questions', { params: { path: { requestId: id } }, body: { party: ask.party, body: ask.body.trim() } }));
+      setAsk({ ...ask, body: '' });
+      await loadShown(id, true);
+      reload();
+    }, '추가 자료를 요청했어요. 상대에게 알림이 가고 48시간 답변 기한이 붙어요.');
   return (
     <>
       <ListBlock
@@ -533,10 +550,11 @@ function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
                   ['결과 등록 시각', utcToLocal(s(row, 'agentResultSubmittedAt'))],
                   ['이의 사유', s(row, 'disputeNote')],
                   ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
+                  ['소명', [`${n(row, 'statementCount') ?? 0}건`, pick(row, 'awaitingRequesterReply') === true && '이용자 답변 대기', pick(row, 'awaitingAgentReply') === true && '도우미 답변 대기'].filter(Boolean).join(' · ')],
                 ]}
               >
-                <button type="button" className="btn secondary" disabled={pending} onClick={() => showEvidence(id)}>
-                  증빙 보기
+                <button type="button" className="btn secondary" disabled={pending} onClick={() => showEvidence(id, !overdue)}>
+                  증빙·소명 보기
                 </button>
                 <button type="button" className="btn primary" onClick={() => onPick(id)}>
                   결과 확정
@@ -547,7 +565,7 @@ function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
         }
       </ListBlock>
       {shown && (
-        <Modal title={`요청 #${shown.id} 증빙`} onClose={() => setShown(null)}>
+        <Modal title={`요청 #${shown.id} 증빙·소명`} onClose={() => setShown(null)}>
           {shown.rows.length === 0 && <p className="prose">올라온 증빙이 없어요. 이의 제기 건이면 도우미가 결과 증빙을 추가할 수 있어요.</p>}
           <div className="tx-file-list">
             {shown.rows.map(([kind, e], i) => {
@@ -568,6 +586,59 @@ function ResultReviewList({ onPick }: { onPick: (requestId: number) => void }) {
               );
             })}
           </div>
+          {shown.threads.map(([who, messages]) => (
+            <section key={who}>
+              <h3>{who} 소명</h3>
+              {messages.length === 0 && <p className="record-note">아직 없어요.</p>}
+              <div className="tx-file-list">
+                {messages.map((m) => {
+                  const files = list(pick(m, 'attachments'));
+                  const question = s(m, 'kind') === 'QUESTION';
+                  return (
+                    <div key={String(n(m, 'id'))} className="tx-file-view">
+                      <EvidenceThumb files={files} />
+                      <div>
+                        <strong>
+                          {question ? '운영팀 질문' : `${who} 답변`} · {utcToLocal(s(m, 'createdAt'))}
+                          {question && s(m, 'replyDueAt') ? ` · 기한 ${utcToLocal(s(m, 'replyDueAt'))}` : ''}
+                        </strong>
+                        <small style={{ whiteSpace: 'pre-wrap' }}>{s(m, 'body')}</small>
+                        {files.length > 0 && (
+                          <small>
+                            <EvidenceFileNames files={files} status={() => '첨부'} />
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+          {shown.disputed && (
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (ask.body.trim()) void sendQuestion(shown.id);
+              }}
+            >
+              <h3>추가 자료 요청</h3>
+              <Field label="받는 사람" required>
+                <select value={ask.party} onChange={(e) => setAsk({ ...ask, party: e.target.value })}>
+                  <option value="REQUESTER">이용자</option>
+                  <option value="AGENT">도우미</option>
+                </select>
+              </Field>
+              <Field label="질문" required>
+                <textarea rows={3} required maxLength={2000} value={ask.body} onChange={(e) => setAsk({ ...ask, body: e.target.value })} placeholder="예: 예매 완료 화면(좌석 정보가 보이게)을 올려 주세요." />
+              </Field>
+              <p className="record-note">받는 사람에게 알림이 가고 48시간 답변 기한이 붙어요. 상대방에게는 보이지 않아요.</p>
+              <button type="submit" className="btn primary" disabled={pending || !ask.body.trim()}>
+                요청 보내기
+              </button>
+            </form>
+          )}
         </Modal>
       )}
     </>
