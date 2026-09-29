@@ -227,7 +227,8 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     const ok = await run(async () => {
       if (files.length) {
         // 증빙을 먼저 올린다. 결과 제출이 실패해도 올린 증빙은 남으므로 파일 선택을 비워 중복 업로드를 막는다.
-        if (failure) {
+        // 시도 증빙은 반려됐을 때만 새로 낼 수 있어서, 이미 올라가 있으면 추가 자료는 결과 증빙으로 올린다.
+        if (needAttemptFile) {
           const keys = await upload(uploadAttemptFile);
           await unwrap(api.POST('/api/requests/{requestId}/attempt-evidences', { ...path, body: { description: description.trim() || null, attachments: keys.map((storageKey, sortOrder) => ({ storageKey, sortOrder })) } }));
         } else {
@@ -267,9 +268,18 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
           {failure ? (
             <TxCard title="2. 시도 증빙 (필수)">
               {attemptOnRecord ? (
-                <Notice tone="success">
-                  {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 더 올릴 자료가 없으면 바로 제출하면 돼요.
-                </Notice>
+                <>
+                  <Notice tone="success">
+                    {latestAttempt?.revision}차 시도 증빙이 올라가 있어요({latestAttempt?.status === 'APPROVED' ? '이용자 승인' : '확인 대기'}). 더 올릴 자료가 없으면 바로 제출하면 돼요.
+                  </Notice>
+                  <p className="prose">매진 화면처럼 더 보여 줄 자료가 있으면 추가 자료로 올려 주세요(선택). 이용자가 결과를 확인할 때 함께 봐요.</p>
+                  {evidenceList}
+                  {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 이용자에게 보이지 않으니 다른 파일로 다시 올려 주세요.</Notice>}
+                  <Field label="추가 자료 설명">
+                    <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:03 전석 매진 화면" />
+                  </Field>
+                  <FilePicker files={files} onChange={setFiles} />
+                </>
               ) : (
                 <>
                   <p className="prose">예매 대기·좌석 선택·매진 화면처럼 예매를 시도한 화면을 올려 주세요. 계정정보 등 민감한 내용은 가려 주세요.</p>
