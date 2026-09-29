@@ -12,17 +12,17 @@
 ### 1-1. 전체 흐름 테스트 전에 필요한 것
 | # | 내용 | 이유 |
 |---|---|---|
-| B1 | **개발 서버 주소** | `.env.local`의 `API_PROXY_TARGET`에 넣는다. 배포 도메인이 다르면 CORS 허용도 필요 |
-| B2 | **약관 3종 등록**: TERMS, PRIVACY, CONTACT_SHARING (`POST /api/admin/policies`) | 없으면 회원가입·요청 생성·수락이 막힌다 |
+| B1 | ~~개발 서버 주소~~ ✅ `https://pico-dev.duckdns.org` (Swagger `/swagger-ui.html`). S3 업로드 CORS는 `http://localhost:5173`만 허용 | 다른 포트·주소로 테스트하면 백엔드에 추가 요청 |
+| B2 | ~~약관 3종 등록~~ ✅ 문서 1·2·3 (테스트용) | `VITE_FALLBACK_*_ID` 불필요 |
 | B3 | **예매처 등록** (`POST /api/admin/platforms`, ALLOW 또는 CONDITIONAL) | 요청서·도우미 신청의 예매처 선택지. BLOCK이면 수락·착수 불가 |
-| B4 | **관리자 계정** (`users.is_admin`) | 요청 정책 검토, 파일 검토, 프로필 심사, 분쟁 확정에 필요 |
-| B5 | **테스트용 도우미 계정**: 본인인증 VERIFIED + 정산계좌 인증 + PUBLISHED 프로필 + 노출·요청 수신 ON + 매칭권 | 계좌실명조회(KG) 미연동이라 화면만으로는 도우미를 완성할 수 없다(가이드 1-4) |
-| B6 | **관리자 화면 응답 필드**: `/admin` 화면을 만들었다. 목록 API(`/api/admin/requests/policy-pending`, `/evidence-files`, `/agent-profiles`, `/users`, `/platforms`)가 `data: object`라 필드명을 후보로 찾는다(각 항목의 '원본 응답'으로 확인 가능). **분쟁 중 요청 목록 API**가 없어 분쟁 확정은 요청 번호를 직접 입력한다. 가이드의 후기 숨김·신고 처리 API가 명세에 없다 | 관리자 화면 |
+| B4 | ~~관리자 계정~~ ✅ 백엔드에서 전달(계정 정보는 문서에 적지 않음) | |
+| B5 | ~~테스트용 도우미 계정~~ ✅ 본인인증·정산계좌 인증·매칭권 10회를 DB로 처리. 도우미 신청(경력 증빙)부터는 화면에서 진행. **DB로 넣은 값이라 이 계정으로 정산계좌 재등록·매칭권 환불은 테스트하지 않는다** | |
+| B6 | **관리자 화면 응답 필드**: `/admin` 화면을 만들었다. 목록 API(`/api/admin/requests/policy-pending`, `/evidence-files`, `/agent-profiles`, `/users`, `/platforms`)가 `data: object`라 필드명을 후보로 찾는다(각 항목의 '원본 응답'으로 확인 가능). **분쟁 중 요청 목록 API**가 없어 분쟁 확정은 요청 번호를 직접 입력한다. 관리자용 신고 증빙 조회 API가 없어 신고 탭에서 증빙을 볼 수 없다 | 관리자 화면 |
 
 ### 1-2. 응답 필드 확정 (명세에 `data: object`로만 있어 프론트가 후보 이름으로 찾는 중)
 | # | API | 프론트가 찾는 이름 (파일) |
 |---|---|---|
-| F1 | `GET /api/me` | `userId`, `nickname`, `email`, `preferredMode`, `emailVerified` (`AuthContext`, `MyPage`). **관리자 여부 필드**(예: `isAdmin`)가 있으면 관리자에게만 `/admin` 메뉴를 보여 줄 수 있다 |
+| F1 | `GET /api/me` | `userId`, `nickname`, `email`, `preferredMode`, `emailVerified` (`AuthContext`, `MyPage`). ✅ 개발 서버 응답은 `id`, `isAdmin` 포함 → 관리자에게만 프로필 메뉴에 '관리자 화면' 표시 |
 | F2 | `GET /api/agents`, `/api/agents/{id}`, `/api/me/favorites` | `agentId`, `activityName`, `headline`, `bio`, `primaryCategory`, `categories`, `upfrontFeeKrw`, `successFeeMin/Max`, `platforms[].{id,name}`, `averageRating`, `reviewCount`, `completedCount`, `successRate`, `averageResponseMinutes`, `profileImageUrl`, `identityVerified`, `payoutAccountVerified` (`discovery/agent.ts`) |
 | F3 | `GET /api/requests`, `/api/requests/{id}` | `requestId`, `requesterUserId`, `agentUserId`, `requesterNickname`, `agentActivityName`, `platformName`, **`stage`**, **`policyGateStatus`**, `finalResult`, 도우미·이용자 결과(`agentResult`, `agentResultNote`, `requesterResult`, `requesterResultNote`), 거절·취소 사유, `paymentId`/`paymentStatus` (`transactions/model.ts`) |
 | F4 | `GET /api/requests/{id}/agreements`, `/change-requests` | `agreementId`, `version`, `status`, `safetyFeeKrw`, `createdAt`, `finalizedAt`, 수정 요청 `reason` |
@@ -37,7 +37,7 @@
 | # | 질문 | 영향 |
 |---|---|---|
 | R1 | **도우미가 결제 상태를 알 방법.** 결제 상세는 이용자만 볼 수 있다. 서버 `stage`로 PAYMENT_WAITING/READY_TO_START는 구분되지만, 도우미 화면의 "거래 취소" 가능 여부(진행 중 결제 유무)를 알려면 요청·합의 응답에 결제 상태가 있으면 좋겠다 | 거래 취소 버튼 |
-| R2 | **명세(openapi.json)와 가이드가 다른 부분.** ① 후기 API: 명세는 "현재 501", 가이드는 구현된 동작으로 설명 → 지금 동작하는지 ② 가이드의 `POST /api/admin/reviews/{id}/hide`, 관리자 신고 처리(PATCH)가 명세에 없음 → 최신 openapi.json 공유 부탁 | 후기, 관리자 화면 |
+| R2 | ~~명세와 가이드 차이~~ ✅ 최신 openapi.json(132개)으로 교체. 후기·신고 증빙 구현됨, 관리자 신고·후기 API 연결 | |
 | R3 | 메일 링크 주소: 이메일 인증 `/verify-email?token=`, 비밀번호 재설정 `/reset-password?token=` 로 맞춰 달라 | 계정 |
 | R4 | 예매 가능 날짜 변환 규칙(프론트가 정함): 날짜 하루 = 한국 00:00~24:00 = UTC 전날 15:00~당일 15:00, 연속 날짜는 한 구간으로 합침. 괜찮은지 | 예매 가능 날짜 |
 | R5 | 승인된 프로필을 수정해 새 초안을 만들면 경력 증빙 3건을 다시 내야 하는지 | 공개 프로필 수정 |
@@ -52,7 +52,7 @@
 | X2 | 계좌실명조회(정산계좌 인증) | 503. 새 도우미를 화면으로 완성할 수 없음 |
 | X3 | 지급대행(착수비·성공보수 송금) | 지급 행 자체를 만들지 않음 → 도우미 정산 내역이 비어 있음 |
 | X4 | 요청 상태 변경 알림(새 요청, 수락·거절, 합의 제안, 착수, 결과 제출·완료) | 없음. 프론트는 거래 화면을 창으로 돌아올 때 다시 불러오는 것으로 보완 |
-| X5 | 신고 증빙 추가·조회 | 501 |
+| X5 | ~~신고 증빙 추가·조회~~ | ✅ 구현됨, 연결 완료 |
 | X6 | 고객 문의, 이용자의 안전거래 결제 목록, 도우미 조건 알림 등록, 소셜 로그인 | API 없음 |
 
 ---
@@ -113,9 +113,8 @@
 - React 19 + Vite + TypeScript, react-router. `openapi.json` → `src/api/schema.d.ts` 타입 자동 생성(`npm run api:types`)
 - `src/api/client.ts`: Bearer 토큰, 401이면 refresh 1회 후 재시도(동시 요청이어도 refresh 한 번), `success/data/message`를 푸는 `unwrap()`
 - 디자인: 프로토타입 CSS를 `src/styles/`에 그대로 옮기고 마크업도 프로토타입과 같게 작성(수정은 `pc-refinements.css` 끝에 주석과 함께)
-- 명세 126개 중 117개 연결(관리자 API 포함). 나머지 9개는 서버 전용(`/webhooks/payments`, `GET /`), 신고 증빙 2개(501), 알림 HEAD, 요청 상태 이력(`/history`), 신고 상세, 프로필 버전 상세, 성공보수 즉시 지급 시도
-- 화면: 도우미 찾기·프로필·좋아요 / 로그인·회원가입·비밀번호 재설정·이메일 인증 / 요청서·요청 상세(조건 비교·수정 요청·확정·취소·재제안)·결제(가상계좌, 입금 전 취소)·시도 증빙·결과 증빙·결과 제출·결과 확인·부분성공 정산·환불·후기·신고 / 내 활동·받은 요청·매칭 관리·매칭권 충전·예매 가능 날짜 / 마이페이지·프로필·계정·인증·거래 내역·신고 내역 / 도우미 신청·공개 프로필 수정·공개 설정 / 알림 / 이용약관·개인정보 안내
-- 관리자(`/admin`, 메뉴 미노출, 서버 권한 검사): 요청 정책 검토, 증빙 파일 검토(파일 보기), 도우미 심사(증빙 보기), 시도 증빙 대리 승인, 부분성공 정산 결정, 분쟁 확정·요청 만료, 결제 확인 기록, 회원·도우미 제재, 예매처 등록·수정, 약관 버전 등록(원문 SHA-256 계산)
+- 명세 132개 중 125개 연결(관리자 API 포함). 나머지 7개는 서버 전용(`/webhooks/payments`, `GET /`), 알림 HEAD, 요청 상태 이력(`/history`), 내 신고 상세(목록으로 충분), 프로필 버전 상세, 성공보수 즉시 지급 시도
+- 화면: 도우미 찾기·프로필·좋아요 / 로그인·회원가입·비밀번호 재설정·이메일 인증 / 요청서·요청 상세(조건 비교·수정 요청·확정·취소·재제안)·결제(가상계좌, 입금 전 취소)·시도 증빙·결과 증빙·결과 제출·결과 확인·부분성공 정산·환불·후기·신고(증빙 첨부) / 내 활동·받은 요청·매칭 관리·매칭권 충전·예매 가능 날짜 / 마이페이지·프로필·계정·인증·거래 내역·신고 내역 / 도우미 신청·공개 프로필 수정·공개 설정 / 알림 / 이용약관·개인정보 안내
+- 관리자(`/admin`, isAdmin이면 프로필 메뉴에 표시, 서버 권한 검사): 요청 정책 검토, 증빙 파일 검토(파일 보기), 도우미 심사(증빙 보기), 시도 증빙 대리 승인, 부분성공 정산 결정, 분쟁 확정·요청 만료, 결제 확인 기록, 신고 처리(조사·처리 완료·처리 안 함), 후기 숨김, 회원·도우미 제재, 예매처 등록·수정, 약관 버전 등록(원문 SHA-256 계산)
 - 준비 중 화면: 이용 방법, 고객 문의
 - `/dev/api`: 응답 모양을 확인하는 개발용 화면
-- 목 서버(`mock/`)는 개발 코드와 분리되어 있고 빌드에 포함되지 않는다. 가이드 규칙 일부(부분성공 정산·환불·신고·파일 검토·stage 응답)는 아직 목 서버에 반영하지 않았다.

@@ -174,6 +174,8 @@ export function AppLayout() {
                 </button>
                 <button onClick={() => go(helper ? '/helper-profile' : '/user-profile')}>프로필 수정</button>
                 {helper && <button onClick={() => go('/credits')}>매칭권 충전</button>}
+                {/* GET /api/me의 isAdmin. 권한은 서버가 다시 검사한다. */}
+                {me?.isAdmin === true && <button onClick={() => go('/admin')}>관리자 화면</button>}
                 <button
                   onClick={() => {
                     setOpened('');
