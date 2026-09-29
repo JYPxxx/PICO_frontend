@@ -116,7 +116,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
           ]}
         />
       </TxCard>
-      {!isResult && <Notice>이용자가 시도 증빙을 승인하면 착수비를 결과 전에 먼저 받아요. 올리지 않아도 결과가 확정되면 착수비가 지급돼요.</Notice>}
+      {!isResult && <Notice>실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요. 이용자가 승인하면 착수비를 결과 전에 먼저 받아요.</Notice>}
     </aside>
   );
 

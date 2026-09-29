@@ -416,7 +416,7 @@ export function RequestDetailPage() {
             {(!latestEvidence || latestEvidence.status === 'REJECTED') && (
               <>
                 {go(`/requests/${r.id}/evidence`, latestEvidence ? '시도 증빙 다시 올리기 (착수비 먼저 받기)' : '시도 증빙 올리기 (착수비 먼저 받기)', 'secondary')}
-                <p className="record-note">선택 사항이에요. 올리지 않아도 결과가 확정되면 착수비가 함께 지급돼요.</p>
+                <p className="record-note">실패로 결과를 등록하려면 꼭 필요해요. 성공·부분 성공이면 없어도 되고, 이용자가 승인하면 착수비를 결과 전에 먼저 받아요.</p>
               </>
             )}
           </>
@@ -781,7 +781,7 @@ export function RequestDetailPage() {
       )}
       {dialog === 'start' && (
         <ConfirmModal title="예매를 시작할까요?" submitText="착수하기" onClose={close} onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/start', path)), '착수했어요. 예매를 마치면 결과를 등록해 주세요.')}>
-          <p className="prose">착수하면 거래가 진행 중으로 바뀌어요. 착수비를 결과 전에 받으려면 예매를 시도한 화면을 시도 증빙으로 올려 주세요. 올리지 않아도 결과가 확정되면 착수비가 지급돼요.</p>
+          <p className="prose">착수하면 거래가 진행 중으로 바뀌어요. 예매를 시도한 화면(대기열·좌석 선택·매진 화면 등)은 꼭 캡처해 두세요. 실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요. 시도 증빙을 미리 올려 이용자가 승인하면 착수비를 결과 전에 먼저 받을 수 있어요.</p>
         </ConfirmModal>
       )}
       {dialog === 'result' && (
