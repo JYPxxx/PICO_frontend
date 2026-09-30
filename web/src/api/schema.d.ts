@@ -1343,7 +1343,7 @@ export interface paths {
         put?: never;
         /**
          * 도우미 결과 미제출 요청 실패 종결
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 도우미가 결과를 내지 않은 IN_PROGRESS 요청을 FAILURE로 종결합니다. body={note(필수, 종결 사유)}. 이용자가 이 거래로 신고한 적이 있어야 하고(아니면 409), 관리자가 당사자면 403입니다. 착수비가 도우미 몫으로 확정되지 않았으면(지급 미시작, 승인된 시도 증빙 없음) 착수비를 지급하지 않는 종결(upfrontForfeited=true)이 되어 이용자가 착수비·성공보수를 환불받고, 확정됐으면 착수비는 도우미에게 지급하고 성공보수만 환불 대상입니다. 안전거래 이용료는 환불하지 않습니다. 환불은 이용자의 환불 요청 API로 진행합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 도우미가 결과를 내지 않은 IN_PROGRESS 요청을 FAILURE로 종결합니다. body={note(필수, 종결 사유)}. 이용자가 이 거래로 낸 신고가 있어야 하고(처리 안 함 DISMISSED로 닫힌 신고만 있으면 409), 관리자가 당사자면 403입니다. 착수비가 도우미 몫으로 확정되지 않았으면(지급 미시작, 승인된 시도 증빙 없음) 착수비를 지급하지 않는 종결(upfrontForfeited=true)이 되어 이용자가 착수비·성공보수를 환불받고, 확정됐으면 착수비는 도우미에게 지급하고 성공보수만 환불 대상입니다. 안전거래 이용료는 환불하지 않습니다. 환불은 이용자의 환불 요청 API로 진행합니다.
          */
         post: operations["closeNoResult"];
         delete?: never;
@@ -2317,7 +2317,7 @@ export interface paths {
         };
         /**
          * 도우미 결과 미제출 신고 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 착수(IN_PROGRESS) 후 도우미가 결과를 내지 않았고 이용자가 그 거래로 신고(OPEN·INVESTIGATING)한 요청, 신고가 오래된 순. data=[{id,submittedTargetName,startedAt,reportId,reportedAt,hasAttemptEvidence,upfrontPayoutStarted,...}]. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 착수(IN_PROGRESS) 후 도우미가 결과를 내지 않았고 이용자가 그 거래로 신고(OPEN·INVESTIGATING·RESOLVED, 처리 안 함 DISMISSED 제외)한 요청, 신고가 오래된 순. 신고를 먼저 처리 완료해도 남습니다. data=[{id,submittedTargetName,startedAt,reportId,reportedAt,reportStatus,reportReason,hasAttemptEvidence,upfrontPayoutStarted,...}]. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400).
          */
         get: operations["noResult"];
         put?: never;

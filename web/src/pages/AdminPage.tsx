@@ -715,7 +715,7 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
     <>
       <ListBlock
         title="도우미 결과 미제출 신고"
-        desc="착수한 뒤 도우미가 결과를 등록하지 않아 이용자가 신고한 요청이에요. 도우미에게 연락해 확인하고, 결과가 나오지 않으면 실패로 종결해요. 신고 처리 자체는 신고 탭에서 따로 해요."
+        desc="착수한 뒤 도우미가 결과를 등록하지 않아 이용자가 신고한 요청이에요. 도우미에게 연락해 확인하고, 결과가 나오지 않으면 실패로 종결해요. 신고 탭에서 신고를 먼저 '처리 완료'해도 여기 남아요. '처리 안 함'으로 닫으면 빠지고 종결할 수 없어요."
         load={load}
         reload={reload}
         empty="결과 미제출 신고가 없어요."
@@ -731,7 +731,8 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
                 title={`#${id} ${s(row, 'submittedTargetName')} · 결과 미제출`}
                 rows={[
                   ['착수 시각', utcToLocal(s(row, 'startedAt'))],
-                  ['신고', `#${n(row, 'reportId') ?? ''} · ${utcToLocal(s(row, 'reportedAt'))}`],
+                  ['신고', `#${n(row, 'reportId') ?? ''} · ${utcToLocal(s(row, 'reportedAt'))} · ${reportStatusNames[s(row, 'reportStatus') as ReportStatus] ?? s(row, 'reportStatus')}`],
+                  ['신고 사유', reportReasonNames[s(row, 'reportReason')] ?? s(row, 'reportReason')],
                   ['시도 증빙', pick(row, 'hasAttemptEvidence') === true ? '있음' : '없음'],
                   ['종결 시 환불', started ? '착수비는 도우미 몫(시도 증빙 승인 또는 지급 진행)이라 지급하고, 성공보수만 환불 대상(이용료 제외)' : '착수비·성공보수 환불 대상, 착수비 미지급(이용료 제외)'],
                 ]}
