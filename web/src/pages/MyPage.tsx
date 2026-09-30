@@ -498,7 +498,8 @@ export function AccountPage() {
               if (ok) signOut('탈퇴했어요. 그동안 이용해 주셔서 고마워요.', '/');
             }}
           >
-            <p className="prose">탈퇴하면 계정으로 로그인할 수 없어요. 진행 중인 거래가 있으면 탈퇴가 제한될 수 있어요.</p>
+            <p className="prose">탈퇴하면 계정으로 로그인할 수 없고, 연락처·본인인증·정산계좌 정보는 바로 지워져요. 거래·결제 기록은 법에 따라 보관돼요.</p>
+            <p className="prose">진행 중인 거래가 있거나 받을 돈·환불받을 돈이 남아 있으면 탈퇴할 수 없어요. 탈퇴 후 30일 동안은 같은 명의로 다시 본인인증을 할 수 없어요(도우미 활동이 정지된 상태에서 탈퇴하면 3년).</p>
             <Field label="비밀번호 확인" required>
               <input type="password" required maxLength={72} value={withdrawPassword} onChange={(e) => setWithdrawPassword(e.target.value)} autoComplete="current-password" />
             </Field>

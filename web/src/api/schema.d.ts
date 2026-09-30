@@ -839,7 +839,7 @@ export interface paths {
         put?: never;
         /**
          * 본인인증 완료 검증
-         * @description 발급받은 identityVerificationId로 PortOne 인증 결과를 서버가 조회해 발급 회원·완료 상태·채널·CI·이름·생년월일과 인증 완료 후 유효시간(기본 30분)을 확인한 뒤 CI 해시와 실명·전체 생년월일 암호문을 저장합니다. CI를 주지 않는 인증 수단(KG이니시스 카카오 인증 등)은 409입니다. 인증 연동 설정이 없으면 503으로 종료하며 상태를 변경하지 않습니다.
+         * @description 발급받은 identityVerificationId로 PortOne 인증 결과를 서버가 조회해 발급 회원·완료 상태·채널·CI·이름·생년월일과 인증 완료 후 유효시간(기본 30분)을 확인한 뒤 CI 해시와 실명·전체 생년월일 암호문을 저장합니다. CI를 주지 않는 인증 수단(KG이니시스 카카오 인증 등)은 409입니다. 탈퇴한 회원과 같은 CI이면 재가입 제한 기간(탈퇴 후 30일, 도우미 활동 정지 중 탈퇴는 3년) 동안 409입니다. 인증 연동 설정이 없으면 503으로 종료하며 상태를 변경하지 않습니다.
          */
         post: operations["verifyIdentity"];
         delete?: never;
@@ -1063,7 +1063,7 @@ export interface paths {
         put?: never;
         /**
          * refresh token 교체
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 갱신 성공 후 이전 refreshToken은 다시 사용할 수 없습니다. 최초 세션 만료일은 연장되지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 갱신 성공 후 이전 refreshToken은 다시 사용할 수 없습니다. 최초 세션 만료일은 연장되지 않습니다. 이미 교체된 직전 refreshToken이 교체 30초 뒤에 다시 들어오면 탈취로 보고 그 세션을 폐기합니다(401, 새 accessToken·refreshToken도 무효, 다시 로그인). 교체 후 30초 안의 재사용은 여러 탭 동시 갱신으로 보고 401만 반환하며 세션은 유지합니다.
          */
         post: operations["refresh"];
         delete?: never;
@@ -1532,7 +1532,7 @@ export interface paths {
         post?: never;
         /**
          * 비밀번호 확인 후 탈퇴
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 진행 중 거래(PENDING·MATCHED·IN_PROGRESS·DISPUTED)가 있거나 지급·환불받을 금액이 남아 있으면 409입니다 (지급·환불 진행 중, 아직 지급되지 않은 착수비·성공보수, 아직 요청하지 않은 실패·부분성공 환불, 미결정 부분성공 정산). 탈퇴하면 로그인 ID는 익명 값으로 바뀌어 같은 이메일로 새로 가입할 수 있고, 닉네임은 '탈퇴한 회원'이 됩니다. 연락처·본인인증 정보·정산계좌·프로필 이미지는 지우고, 거래·결제·증빙·후기·동의 기록은 보관합니다. 본인인증 CI 해시는 30일(도우미 활동 정지 중 탈퇴는 3년) 동안만 보관해 같은 사람의 본인인증을 막고, 기간이 지나면 지웁니다.
          */
         delete: operations["withdraw"];
         options?: never;
@@ -9577,7 +9577,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 만료·폐기·이미 사용한 refresh token */
+            /** @description 만료·폐기·이미 사용한 refresh token(재사용 감지 시 세션 폐기) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -11505,7 +11505,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            /** @description 진행 중 거래 또는 남은 지급·환불 */
             409: {
                 headers: {
                     [name: string]: unknown;
