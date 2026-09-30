@@ -1062,6 +1062,7 @@ function ReportsTab() {
   );
   const { open, modal, pending } = useDialog(reload);
   const [detail, setDetail] = useState<number | null>(null);
+  const [evidenceOf, setEvidenceOf] = useState<number | null>(null);
   const update = (row: Raw, next: ReportStatus) =>
     open({
       title: `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
@@ -1075,7 +1076,7 @@ function ReportsTab() {
   return (
     <>
       <StatusFilter value={status} onChange={setStatus} options={Object.entries(reportStatusNames) as [ReportStatus, string][]} />
-      <ListBlock title="신고 목록" desc="처리 사유는 신고자에게 공개돼요. 이용 정지 등 제재는 회원 제재 탭에서 따로 해요. 신고 증빙은 관리자 조회 API가 없어 여기서 볼 수 없어요." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
+      <ListBlock title="신고 목록" desc="처리 사유는 신고자에게 공개돼요. 이용 정지 등 제재는 회원 제재 탭에서 따로 해요. '증빙 보기'로 신고자가 올린 자료를 확인할 수 있어요(본인이 신고자·대상인 신고는 볼 수 없어요)." load={load} reload={reload} empty="해당 상태의 신고가 없어요.">
         {(rows) =>
           rows.map((row) => {
             const st = s(row, 'status') as ReportStatus;
@@ -1096,6 +1097,9 @@ function ReportsTab() {
               >
                 <button type="button" className="btn ghost" onClick={() => setDetail(n(row, 'reportId')!)}>
                   상세
+                </button>
+                <button type="button" className="btn secondary" onClick={() => setEvidenceOf(n(row, 'reportId')!)}>
+                  증빙 보기
                 </button>
                 {st === 'OPEN' && (
                   <button type="button" className="btn secondary" disabled={pending} onClick={() => update(row, 'INVESTIGATING')}>
@@ -1119,7 +1123,59 @@ function ReportsTab() {
       </ListBlock>
       {modal}
       {detail !== null && <DetailModal title={`신고 #${detail}`} fetcher={() => unwrap(api.GET('/api/admin/reports/{reportId}', { params: { path: { reportId: detail } } }))} onClose={() => setDetail(null)} />}
+      {evidenceOf !== null && <ReportEvidenceModal reportId={evidenceOf} onClose={() => setEvidenceOf(null)} />}
     </>
+  );
+}
+
+/** 신고자가 올린 증빙(최신 제출 순). 열람 주소는 5분 유효, 차단 파일은 주소가 없다. */
+function ReportEvidenceModal({ reportId, onClose }: { reportId: number; onClose: () => void }) {
+  const [rows, setRows] = useState<Raw[] | null>(null);
+  const [failed, setFailed] = useState('');
+  const load = useCallback(() => {
+    setFailed('');
+    unwrap<unknown>(api.GET('/api/admin/reports/{reportId}/evidences', { params: { path: { reportId }, query: { page: 0, size: 20 } } }))
+      .then((data) => setRows(list(data)))
+      .catch((e) => setFailed(e instanceof ApiError && e.status === 403 ? '본인이 신고자이거나 신고 대상인 신고의 증빙은 볼 수 없어요.' : e instanceof Error ? e.message : '증빙을 불러오지 못했어요.'));
+  }, [reportId]);
+  useEffect(() => {
+    load();
+  }, [load]);
+  return (
+    <Modal title={`신고 #${reportId} 증빙`} onClose={onClose}>
+      {failed ? (
+        <>
+          <Notice tone="error">{failed}</Notice>
+          <div className="modal-actions">
+            <button type="button" className="btn primary" onClick={load}>
+              다시 불러오기
+            </button>
+          </div>
+        </>
+      ) : !rows ? (
+        <p className="record-note">불러오는 중…</p>
+      ) : !rows.length ? (
+        <p className="record-note">신고자가 올린 증빙이 없어요.</p>
+      ) : (
+        rows.map((e, i) => {
+          const files = list(pick(e, 'attachments'));
+          return (
+            <div key={String(n(e, 'evidenceId') ?? i)} className="tx-file-view">
+              <EvidenceThumb files={files} />
+              <div>
+                <strong>
+                  {n(e, 'revision') ?? 1}차 제출 · {utcToLocal(s(e, 'submittedAt'))}
+                </strong>
+                <small>{s(e, 'description') || '설명 없음'}</small>
+                <small>
+                  <EvidenceFileNames files={files} status={(f) => (str(f.scanStatus) === 'BLOCKED' ? '차단됨' : str(f.url) ? '열람 가능' : '열 수 없음(파일 없음)')} />
+                </small>
+              </div>
+            </div>
+          );
+        })
+      )}
+    </Modal>
   );
 }
 

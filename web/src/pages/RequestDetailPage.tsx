@@ -370,7 +370,7 @@ export function RequestDetailPage() {
         {text}
       </button>
     );
-    // 가이드 6-1: MATCHED에서는 진행 중인 결제가 없을 때만 당사자가 취소할 수 있고, 도우미의 매칭권이 복구된다.
+    // 가이드 6-1: MATCHED에서는 진행 중인 결제가 없을 때만 당사자가 취소할 수 있다. 이용자가 취소하면 도우미의 매칭권이 복구되고, 도우미가 취소하면 복구되지 않는다.
     const cancelMatched =
       r.status === 'MATCHED' && !hasActivePayment ? (
         <button type="button" className="btn ghost full tx-danger" disabled={pending} onClick={() => setDialog('cancel')}>
@@ -852,7 +852,7 @@ export function RequestDetailPage() {
         >
           <p className="prose">
             취소하면 되돌릴 수 없어요.
-            {r.status === 'MATCHED' && ' 도우미가 수락할 때 사용한 매칭권은 복구돼요.'}
+            {r.status === 'MATCHED' && (agent ? ' 도우미가 취소하면 수락할 때 사용한 매칭권은 돌려받지 않아요.' : ' 도우미가 수락할 때 사용한 매칭권은 도우미에게 복구돼요.')}
           </p>
         </ReasonModal>
       )}

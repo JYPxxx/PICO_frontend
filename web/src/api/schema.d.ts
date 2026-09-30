@@ -603,7 +603,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 취소 및 필요 시 매칭권 복구
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. MATCHED 취소는 이용자가 취소할 때만 매칭권을 복구하고, 도우미가 스스로 취소하면 복구하지 않습니다.
          */
         post: operations["cancel"];
         delete?: never;
@@ -627,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * 시도 증빙 제출
-         * @description 지정된 도우미만 MATCHED/IN_PROGRESS/DISPUTED 거래에 제출합니다. ATTEMPT, caseNumber=1, 제출자와 revision은 서버가 결정합니다. 첫 제출 또는 최신 증빙 반려 후 재제출만 허용합니다. 파일 소유권·목적·실제 크기(최대 20 MiB)·헤더와 MIME를 검증하고 서버 전용 복사본을 저장합니다. 첨부는 PENDING으로 등록하며 저장 자체가 안전 검사 완료를 뜻하지 않습니다. 같은 트랜잭션에서 요청자에게 EVIDENCE 인앱 알림을 저장합니다.
+         * @description 지정된 도우미만 IN_PROGRESS/DISPUTED(착수 후) 거래에 제출합니다. ATTEMPT, caseNumber=1, 제출자와 revision은 서버가 결정합니다. 첫 제출 또는 최신 증빙 반려 후 재제출만 허용합니다. 파일 소유권·목적·실제 크기(최대 20 MiB)·헤더와 MIME를 검증하고 서버 전용 복사본을 저장합니다. 첨부는 PENDING으로 등록하며 저장 자체가 안전 검사 완료를 뜻하지 않습니다. 같은 트랜잭션에서 요청자에게 EVIDENCE 인앱 알림을 저장합니다.
          */
         post: operations["submitEvidence"];
         delete?: never;
@@ -715,7 +715,7 @@ export interface paths {
         put?: never;
         /**
          * 요청 수락 및 매칭권 차감
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. MatchingPassPort JDBC 구현으로 실제 지급·결제 완료된 유효 매칭권을 차감·복구합니다. 환불 회수 예약분은 사용하지 않으며 잔액 부족은 409입니다. 구매·PG 승인은 별도 결제 API입니다. MATCHED 취소는 이용자가 취소할 때만 매칭권을 복구하고, 도우미가 스스로 취소하면 복구하지 않습니다.
          */
         post: operations["accept"];
         delete?: never;
@@ -1183,7 +1183,7 @@ export interface paths {
         put?: never;
         /**
          * 시도 증빙 반려
-         * @description 거래 요청자만 최신 SUBMITTED 시도 증빙을 REJECTED로 변경합니다. MATCHED/IN_PROGRESS/DISPUTED 거래에서만 허용합니다. 반려 사유는 필수이며 기존 검토 이력을 덮어쓰지 않습니다. 도우미는 새 revision으로 재제출할 수 있습니다. 같은 트랜잭션에서 도우미에게 EVIDENCE 반려 알림을 저장합니다. 지급·결제 상태는 변경하지 않습니다.
+         * @description 거래 요청자만 최신 SUBMITTED 시도 증빙을 REJECTED로 변경합니다. IN_PROGRESS/DISPUTED(착수 후) 거래에서만 허용합니다. 반려 사유는 필수이며 기존 검토 이력을 덮어쓰지 않습니다. 도우미는 새 revision으로 재제출할 수 있습니다. 같은 트랜잭션에서 도우미에게 EVIDENCE 반려 알림을 저장합니다. 지급·결제 상태는 변경하지 않습니다.
          */
         post: operations["rejectEvidence"];
         delete?: never;
@@ -1203,7 +1203,7 @@ export interface paths {
         put?: never;
         /**
          * 시도 증빙 승인
-         * @description 거래 요청자만 최신 SUBMITTED 시도 증빙을 APPROVED로 변경합니다. MATCHED/IN_PROGRESS/DISPUTED 거래만 허용하며 이미 검토한 증빙은 409입니다. 승인자·검토 시각은 서버가 기록합니다. 승인은 증빙을 인정했다는 의미이며 이 요청 안에서 결제 상태를 바꾸지 않습니다. 승인 커밋 후 착수비 지급 조건(착수 후·결제 완료·정산계좌 등록)을 별도로 확인해 지급을 요청하며, 응답은 지급 결과와 무관합니다. 파일 안전 검사 상태도 별개입니다. 같은 트랜잭션에서 도우미에게 EVIDENCE 승인 알림을 저장합니다.
+         * @description 거래 요청자만 최신 SUBMITTED 시도 증빙을 APPROVED로 변경합니다. IN_PROGRESS/DISPUTED(착수 후) 거래만 허용하며 이미 검토한 증빙은 409입니다. 승인자·검토 시각은 서버가 기록합니다. 승인은 증빙을 인정했다는 의미이며 이 요청 안에서 결제 상태를 바꾸지 않습니다. 승인 커밋 후 착수비 지급 조건(착수 후·결제 완료·정산계좌 등록)을 별도로 확인해 지급을 요청하며, 응답은 지급 결과와 무관합니다. 파일 안전 검사 상태도 별개입니다. 같은 트랜잭션에서 도우미에게 EVIDENCE 승인 알림을 저장합니다.
          */
         post: operations["approveEvidence"];
         delete?: never;
@@ -1467,7 +1467,7 @@ export interface paths {
         put?: never;
         /**
          * 시도 증빙 관리자 승인
-         * @description 제출 후 24시간이 지나도록 이용자가 검토하지 않은 최신 SUBMITTED 시도 증빙을 관리자가 APPROVED로 변경합니다. 24시간 전이거나 이미 검토된 증빙은 409입니다. MATCHED/IN_PROGRESS/DISPUTED 거래만 허용하며 검토자는 관리자로 기록됩니다. 승인 커밋 후 착수비 지급 조건(착수 후·결제 완료·정산계좌 등록)을 확인해 자동 지급을 요청하며, 응답은 지급 결과와 무관합니다.
+         * @description 제출 후 24시간이 지나도록 이용자가 검토하지 않은 최신 SUBMITTED 시도 증빙을 관리자가 APPROVED로 변경합니다. 24시간 전이거나 이미 검토된 증빙은 409입니다. IN_PROGRESS/DISPUTED(착수 후) 거래만 허용하며 검토자는 관리자로 기록됩니다. 승인 커밋 후 착수비 지급 조건(착수 후·결제 완료·정산계좌 등록)을 확인해 자동 지급을 요청하며, 응답은 지급 결과와 무관합니다.
          */
         post: operations["approveOverdueEvidence"];
         delete?: never;
@@ -2340,6 +2340,26 @@ export interface paths {
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 신고 상태로 선택 필터링하고 최신 접수순으로 페이지 조회합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["list_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/reports/{reportId}/evidences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 관리자 신고 증빙 조회
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 신고자가 올린 증빙 이력(최신 제출 순)과 5분 유효 열람 URL. 차단된 파일은 URL이 없습니다. 관리자가 그 신고의 신고자·피신고자면 403입니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). ADMIN 권한이 필요합니다.
+         */
+        get: operations["evidences"];
         put?: never;
         post?: never;
         delete?: never;
@@ -14482,6 +14502,85 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListAdminReportResponse"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    evidences: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                reportId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListEvidenceSubmissionResponse"];
                 };
             };
             /** @description 입력 형식·범위 오류 */
