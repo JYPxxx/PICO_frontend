@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useLoad } from '../transactions/model';
 import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
+import { tokenFrom } from '../ui/format';
 import { Icon } from '../ui/Icon';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
@@ -530,15 +531,44 @@ function confirmEmail(token: string) {
   return confirming.get(token)!;
 }
 
-/** 인증 메일의 링크(/verify-email?token=…)로 들어오면 POST /api/auth/email-verification/confirm으로 확정한다. */
+/**
+ * 인증 메일의 링크(/verify-email?token=…)로 들어오면 POST /api/auth/email-verification/confirm으로 확정한다.
+ * 가입 인증과 이메일 변경 확인이 같은 링크를 쓴다. 링크가 열리지 않으면 토큰을 붙여 넣어 확인한다.
+ */
 export function VerifyEmailPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
-  const [load] = useLoad(async () => {
-    if (!token) throw new Error('인증 링크가 올바르지 않아요.');
-    await confirmEmail(token);
-  }, [token]);
+  // 토큰마다 새로 확인한다(붙여 넣은 토큰으로 바뀌면 이전 결과를 버린다).
+  if (token) return <VerifyEmailResult key={token} token={token} />;
+  return (
+    <div className="account-contained account-complete">
+      <section className="content-card">
+        <h1>이메일 인증</h1>
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            if (!form.checkValidity()) return form.querySelector<HTMLElement>(':invalid')?.focus();
+            const value = tokenFrom(String(new FormData(form).get('token') ?? ''));
+            if (value) navigate(`/verify-email?token=${encodeURIComponent(value)}`, { replace: true });
+          }}
+        >
+          <AccountNote>메일의 인증 링크가 열리지 않으면 링크를 복사해 아래에 붙여 넣어 주세요. 링크 전체나 token= 뒤의 값을 넣으면 돼요. 인증 링크는 15분 동안만 쓸 수 있어요.</AccountNote>
+          <AccountInput name="token" label="인증 토큰" required maxLength={2000} autoComplete="off" placeholder="메일로 받은 링크 또는 토큰" />
+          <button type="submit" className="btn primary full">
+            이메일 인증하기
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+function VerifyEmailResult({ token }: { token: string }) {
+  const navigate = useNavigate();
+  const [load] = useLoad(() => confirmEmail(token), [token]);
   return (
     <div className="account-contained account-complete">
       <section className="content-card">
@@ -548,6 +578,9 @@ export function VerifyEmailPage() {
           <>
             <h1>이메일을 확인하지 못했어요</h1>
             <p className="prose">{load.message} 인증 링크는 15분 동안만 쓸 수 있어요.</p>
+            <button type="button" className="btn secondary full" onClick={() => navigate('/verify-email', { replace: true })}>
+              토큰 다시 입력하기
+            </button>
             <button type="button" className="btn primary full" onClick={() => navigate('/my')}>
               마이페이지로
             </button>

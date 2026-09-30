@@ -63,6 +63,8 @@ export interface TxRequest {
   requesterResultNote: string;
   paymentId?: number;
   paymentStatus: string;
+  /** 이용자가 최신 조건(확정본 포함)에 변경을 요청했고 도우미가 새 조건을 아직 보내지 않음. 이 동안 착수는 409 */
+  agreementChangePending: boolean;
   raw: Raw;
 }
 
@@ -83,9 +85,10 @@ export function toRequest(raw: Raw): TxRequest {
     applicationOpenTime: s('applicationOpenTime').slice(0, 5),
     scheduledUseDate: s('scheduledUseDate'),
     scheduledUseTime: s('scheduledUseTime').slice(0, 5),
-    platformId: n('platformId', 'platform.id'),
+    // 서버는 이용자가 고른 예매처를 submittedPlatformId·submittedOtherPlatformName으로 준다.
+    platformId: n('submittedPlatformId', 'platformId', 'platform.id'),
     platformName: s('platformName', 'platform.name'),
-    otherPlatformName: s('otherPlatformName'),
+    otherPlatformName: s('submittedOtherPlatformName', 'otherPlatformName'),
     locationNote: s('locationNote'),
     requestedQuantity: n('requestedQuantity'),
     requirements: s('requirements'),
@@ -113,6 +116,7 @@ export function toRequest(raw: Raw): TxRequest {
     requesterResultNote: s('requesterResultNote', 'requesterNote', 'result.requesterNote'),
     paymentId: n('paymentId', 'payment.paymentId', 'safePayment.paymentId'),
     paymentStatus: s('paymentStatus', 'payment.status', 'safePayment.status'),
+    agreementChangePending: pick(raw, 'agreementChangePending') === true || num(pick(raw, 'agreementChangePending')) === 1,
     raw,
   };
 }
@@ -144,14 +148,16 @@ export function toAgreement(raw: Raw): Agreement {
   const s = (...k: string[]) => str(pick(raw, ...k)) ?? '';
   const n = (...k: string[]) => num(pick(raw, ...k));
   const successFeeKrw = n('successFeeKrw') ?? 0;
-  const safePayment = pick(raw, 'safePayment') === undefined ? true : bool(pick(raw, 'safePayment'));
+  const fee = n('safetyFeeKrw');
+  // 서버 합의 응답에는 safePayment가 없고 safety_fee_krw만 온다(직접 거래는 0원).
+  const safePayment = pick(raw, 'safePayment') !== undefined ? bool(pick(raw, 'safePayment')) : (fee ?? 0) > 0;
   return {
     id: n('agreementId', 'id') ?? 0,
     version: n('version', 'versionNumber', 'revision') ?? 1,
     status: s('status') || 'PROPOSED',
     upfrontFeeKrw: n('upfrontFeeKrw') ?? 0,
     successFeeKrw,
-    safetyFeeKrw: n('safetyFeeKrw') ?? safetyFee(successFeeKrw, safePayment),
+    safetyFeeKrw: fee ?? safetyFee(successFeeKrw, safePayment),
     safePayment,
     requirements: s('requirements'),
     successConditions: s('successConditions'),
@@ -314,6 +320,10 @@ export interface Detail {
 
 const soft = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
 
+/** 안전거래 결제의 환불 내역. 결제한 이용자만 볼 수 있어 도우미는 빈 목록이 된다. */
+const loadRefunds = (paymentId: number) =>
+  soft(unwrap<unknown>(api.GET('/api/payments/{paymentId}/refunds', { params: { path: { paymentId } } })).then(list), [] as Raw[]);
+
 export async function fetchDetail(id: number): Promise<Detail> {
   const request = toRequest(await unwrap<Raw>(api.GET('/api/requests/{requestId}', path(id))));
   const matched = ['MATCHED', 'IN_PROGRESS', 'DISPUTED', 'COMPLETED'].includes(request.status);
@@ -328,14 +338,15 @@ export async function fetchDetail(id: number): Promise<Detail> {
   ]);
   const agreements = list(agreementsRaw).map(toAgreement);
   const latest = latestAgreement(agreements);
+  // 확정된 조건에도 이용자가 변경을 요청할 수 있다(결제 전). 이때도 요청 사유를 보여 주려고 불러온다.
   const changeRequests =
-    latest && latest.status === 'PROPOSED'
+    latest && (latest.status === 'PROPOSED' || request.agreementChangePending)
       ? list(
           await soft(
             unwrap<unknown>(api.GET('/api/requests/{requestId}/agreements/{agreementId}/change-requests', { params: { path: { requestId: id, agreementId: latest.id } } })),
             [],
           ),
-        )
+        ).filter((c) => !pick(c, 'resolvedAt'))
       : [];
   const paymentId = latest?.paymentId ?? request.paymentId;
   // 명세: 결제 상세는 결제한 이용자만 볼 수 있다(도우미는 404). 요청·합의 응답에 결제 상태가 있으면 따로 조회하지 않는다.
@@ -349,8 +360,12 @@ export async function fetchDetail(id: number): Promise<Detail> {
   const [review, partial, refunds] = await Promise.all([
     completed ? soft(unwrap<Review>(api.GET('/api/requests/{requestId}/review', path(id))), null) : Promise.resolve(null),
     completed && final === 'PARTIAL' && finalized?.safePayment ? soft(unwrap<Raw>(api.GET('/api/requests/{requestId}/partial-settlement', path(id))), null) : Promise.resolve(null),
-    paymentId && payment ? soft(unwrap<unknown>(api.GET('/api/payments/{paymentId}/refunds', { params: { path: { paymentId } } })).then(list), [] as Raw[]) : Promise.resolve([] as Raw[]),
+    // 요청 요약의 paymentId로 바로 조회한다(결제 상세를 따로 불러오지 않아도). 도우미는 404라 빈 목록이 된다.
+    paymentId ? loadRefunds(paymentId) : Promise.resolve([] as Raw[]),
   ]);
+  // 결제 번호가 요약에 없고 부분성공 정산에만 있으면 그 번호로 조회한다.
+  const partialPaymentId = num(pick(partial, 'paymentId'));
+  const allRefunds = !paymentId && partialPaymentId ? await loadRefunds(partialPaymentId) : refunds;
   return {
     request,
     agreements,
@@ -361,7 +376,7 @@ export async function fetchDetail(id: number): Promise<Detail> {
     review,
     resultEvidences: list(resultEvidencesRaw),
     partial,
-    refunds,
+    refunds: allRefunds,
     stage: stageOf(request, agreements, changeRequests),
   };
 }

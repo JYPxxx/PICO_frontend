@@ -13,7 +13,7 @@ export interface paths {
         };
         /**
          * 거래 당사자의 요청 상세
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만)입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 거래 당사자만 조회할 수 있습니다. 숨김·삭제된 후기 원문과 이미지 저장 키, 내부 정책 검토 메모·근거 URL은 응답에서 제외합니다. disputeNote는 이용자의 최근 이의 사유(양쪽 당사자에게 보임), resultConfirmDueAt은 이용자 결과 확인 기한(UTC, 확인 대기 중일 때만), paymentId·paymentStatus는 최신 합의의 최신 결제(환불 요청 API에 씀)입니다.
          */
         get: operations["get"];
         /**
@@ -1143,7 +1143,7 @@ export interface paths {
         put?: never;
         /**
          * 로그인 및 토큰 발급
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. accessToken을 Swagger Authorize에 입력합니다(토큰 문자열만 입력). 계정별 제한 초과 시 429입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. accessToken을 Swagger Authorize에 입력합니다(토큰 문자열만 입력). 10분에 이메일당 10회, 같은 IP에서 30회(성공한 시도는 빼고)를 넘으면 429입니다. 비밀번호 변경·탈퇴·이메일 변경의 현재 비밀번호 확인도 계정·IP 기준으로 같은 제한을 받습니다.
          */
         post: operations["login"];
         delete?: never;
@@ -2873,10 +2873,10 @@ export interface components {
             requestId: number;
             /**
              * Format: int64
-             * @description requests.requester_user_id → users.id
+             * @description requests.requester_user_id → users.id. 작성 응답에만 채우고, 공개 조회(도우미 후기 목록·요청 후기 조회)는 익명이라 null
              * @example 21
              */
-            requesterId: number;
+            requesterId?: number | null;
             /**
              * Format: int64
              * @description requests.agent_user_id → users.id. 프로필 버전 ID 아님
@@ -9858,7 +9858,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 계정별 로그인 시도 제한 */
+            /** @description 이메일·IP 기준 로그인 시도 제한 */
             429: {
                 headers: {
                     [name: string]: unknown;

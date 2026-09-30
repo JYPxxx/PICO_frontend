@@ -66,7 +66,7 @@ export function TermsPage() {
       <PageTitle title="최종 조건 작성" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
       <div className="detail-layout tx-layout">
         <form id="tx-terms-form" noValidate onSubmit={submit}>
-          {stage === 'revision_requested' &&
+          {(stage === 'revision_requested' || r.agreementChangePending) &&
             changeRequests.map((c, i) => <Notice key={i}>이용자 수정 요청: {str(pick(c, 'reason', 'message', 'body'))}</Notice>)}
           <TxCard title="진행 조건">
             <p className="record-note">이용자의 요청이 기본값이에요. 필요한 부분을 조정해 보내 주세요.</p>

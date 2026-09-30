@@ -48,8 +48,9 @@ const emptyAccount = { bank: '004', number: '', holder: '' };
 export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxRequest; a: Agreement; partial: Raw | null; agent: boolean; reload: () => void }) {
   const { pending, run } = useAction();
   const [amount, setAmount] = useState(0);
+  const [amountMissing, setAmountMissing] = useState(false);
   const [note, setNote] = useState('');
-  const [dialog, setDialog] = useState<'' | 'accept' | 'reject'>('');
+  const [dialog, setDialog] = useState<'' | 'propose' | 'accept' | 'reject'>('');
   const [account, setAccount] = useState(emptyAccount);
   const [rejectNote, setRejectNote] = useState('');
   const path = { params: { path: { requestId: r.id } } };
@@ -66,9 +67,20 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
     return message;
   };
 
-  async function propose(e: FormEvent) {
+  /** 제안은 한 번뿐이라 되돌릴 수 없다. 빈칸을 0원으로 보내지 않도록 금액을 꼭 입력받고, 확인 창에서 한 번 더 보여 준다. */
+  function review(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const input = e.currentTarget.elements.namedItem('amountKrw') as HTMLInputElement | null;
+    if (!input || input.validity.valueMissing || input.validity.badInput) {
+      setAmountMissing(true);
+      input?.focus();
+      return;
+    }
     if (amount > a.successFeeKrw) return;
+    setDialog('propose');
+  }
+
+  async function propose() {
     const ok = await run(() => unwrap(api.POST('/api/requests/{requestId}/partial-settlement', { ...path, body: { amountKrw: amount, note: note.trim() || null } })), '정산 금액을 제안했어요.');
     done('')(ok);
   }
@@ -80,13 +92,23 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
       </p>
       {!partial || status === 'NOT_PROPOSED' ? (
         agent ? (
-          <form noValidate onSubmit={propose}>
-            <Field label="내 몫(원)" required helper={`0원 ~ ${money(a.successFeeKrw)}원. 한 번만 제안할 수 있어요.`}>
-              <MoneyInput required max={a.successFeeKrw} value={amount} onChange={setAmount} />
+          <form noValidate onSubmit={review}>
+            <Field label="내 몫(원)" required helper={`0원 ~ ${money(a.successFeeKrw)}원. 한 번만 제안할 수 있어요. 받지 않으려면 0을 입력해 주세요.`}>
+              <MoneyInput
+                name="amountKrw"
+                required
+                max={a.successFeeKrw}
+                value={amount}
+                onChange={(n) => {
+                  setAmount(n);
+                  setAmountMissing(false);
+                }}
+              />
             </Field>
             <Field label="근거">
               <textarea rows={3} maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="최종 조건의 성공 요건 중 무엇을 충족했는지 적어 주세요." />
             </Field>
+            {amountMissing && <Notice tone="error">제안할 금액을 입력해 주세요.</Notice>}
             {amount > a.successFeeKrw && <Notice tone="error">성공보수보다 많이 제안할 수 없어요.</Notice>}
             <button type="submit" className="btn primary" disabled={pending || amount > a.successFeeKrw}>
               정산 금액 제안
@@ -120,6 +142,27 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
           )}
           {status === 'REJECTED' && <Notice>금액이 맞지 않아 운영팀이 증빙을 보고 결정해요. 결정되면 이용자가 환불을 요청할 수 있어요.</Notice>}
         </>
+      )}
+      {dialog === 'propose' && (
+        <Modal title="이 금액으로 제안할까요?" onClose={() => setDialog('')}>
+          <Rows
+            rows={[
+              ['내 몫(제안 금액)', won(amount)],
+              ['이용자 환불 예정', won(Math.max(0, a.successFeeKrw - amount))],
+            ]}
+          />
+          <p className="prose">
+            제안은 한 번만 할 수 있고 보낸 뒤에는 바꿀 수 없어요. 이용자가 동의하면 {won(amount)}이 지급되고 나머지는 이용자에게 환불돼요. 이용자가 거절하면 운영팀이 증빙을 보고 금액을 정해요.
+          </p>
+          <div className="modal-actions">
+            <button type="button" className="btn secondary" onClick={() => setDialog('')}>
+              금액 다시 보기
+            </button>
+            <button type="button" className="btn primary" disabled={pending} onClick={propose}>
+              {pending ? '처리 중…' : `${won(amount)} 제안하기`}
+            </button>
+          </div>
+        </Modal>
       )}
       {dialog === 'accept' && (
         <Modal title="정산 금액에 동의할까요?" onClose={() => setDialog('')}>

@@ -289,7 +289,8 @@ export function RequestDetailPage() {
   const latestEvidence = d.evidences[0];
   const contacts = contactRows(d.contacts);
   const paymentStatus = (str(pick(d.payment, 'status')) || latest?.paymentStatus || r.paymentStatus || '').toUpperCase();
-  const paymentId = num(pick(d.payment, 'paymentId')) ?? latest?.paymentId ?? r.paymentId;
+  // 요청 요약의 paymentId를 쓰고, 없으면 부분성공 정산의 결제 번호로 대신한다.
+  const paymentId = num(pick(d.payment, 'paymentId')) ?? latest?.paymentId ?? r.paymentId ?? num(pick(d.partial, 'paymentId'));
   const hasActivePayment = (!!paymentStatus && !inactivePayment.includes(paymentStatus)) || (!paymentStatus && !!finalized?.safePayment && stage === 'ready');
   const final = r.finalResult ?? (r.status === 'COMPLETED' && r.requesterResult === r.agentResult ? r.agentResult : undefined);
   // 착수비 선지급·지급 안내는 안전거래이고 착수비가 있을 때만 맞는 말이다.
@@ -439,6 +440,20 @@ export function RequestDetailPage() {
           </>
         );
       case 'ready':
+        // 이용자가 확정된 조건에 변경을 요청했으면 도우미가 새 조건을 보낼 때까지 착수할 수 없다(서버 409).
+        if (r.agreementChangePending)
+          return agent ? (
+            <>
+              <Notice tone="error">이용자가 확정된 조건의 변경을 요청해서 지금은 착수할 수 없어요. 요청 내용을 확인하고 조건을 다시 제안해 주세요.</Notice>
+              {go(`/requests/${r.id}/terms`, '조건 다시 제안하기')}
+              {cancelMatched}
+            </>
+          ) : (
+            <>
+              <Notice>조건 변경을 요청했어요. 도우미가 변경 내용을 검토해 새 조건을 보내기 전에는 착수하지 않아요. 새 조건이 오면 다시 확인하고 확정해 주세요.</Notice>
+              {cancelMatched}
+            </>
+          );
         return (
           <>
             {agent ? btn('예매 착수하기', () => setDialog('start')) : <Notice tone="success">{finalized?.safePayment ? '결제를 마쳤어요. 도우미의 착수를 기다려 주세요.' : '조건을 확정했어요. 도우미의 착수를 기다려 주세요.'}</Notice>}
@@ -536,7 +551,7 @@ export function RequestDetailPage() {
             <NextStep stage={stage} role={role} />
           </section>
 
-          {stage === 'revision_requested' && d.changeRequests.length > 0 && (
+          {(stage === 'revision_requested' || r.agreementChangePending) && d.changeRequests.length > 0 && (
             <TxCard title="이용자의 수정 요청">
               {d.changeRequests.map((c, i) => (
                 <Notice key={i}>{str(pick(c, 'reason', 'message', 'body')) ?? ''}</Notice>
@@ -889,7 +904,29 @@ export function RequestDetailPage() {
         </ReasonModal>
       )}
       {dialog === 'start' && (
-        <ConfirmModal title="예매를 시작할까요?" submitText="착수하기" onClose={close} onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/start', path)), '착수했어요. 예매를 마치면 결과를 등록해 주세요.')}>
+        <ConfirmModal
+          title="예매를 시작할까요?"
+          submitText="착수하기"
+          onClose={close}
+          onConfirm={() =>
+            act(async () => {
+              try {
+                await unwrap(api.POST('/api/requests/{requestId}/start', path));
+              } catch (e) {
+                // 착수 직전에 이용자가 조건 변경을 요청하면 서버가 409로 막는다. 최신 상태를 확인해 원인을 알려 준다.
+                if (e instanceof ApiError && e.status === 409) {
+                  const fresh = await fetchDetail(requestId).catch(() => null);
+                  if (fresh?.request.agreementChangePending) {
+                    close();
+                    reload();
+                    throw new Error('이용자가 조건 변경을 요청해서 착수할 수 없어요. 요청 내용을 확인하고 조건을 다시 제안해 주세요.');
+                  }
+                }
+                throw e;
+              }
+            }, '착수했어요. 예매를 마치면 결과를 등록해 주세요.')
+          }
+        >
           <p className="prose">
             착수하면 거래가 진행 중으로 바뀌어요. 예매를 시도한 화면(대기열·좌석 선택·매진 화면 등)은 꼭 캡처하거나 녹화해 두세요. 실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요.
             {upfrontApplies && ' 시도 증빙을 미리 올려 이용자가 승인하면 착수비를 결과 전에 먼저 받을 수 있어요.'}

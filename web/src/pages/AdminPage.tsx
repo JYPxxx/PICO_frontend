@@ -36,7 +36,7 @@ const s = (raw: unknown, ...keys: string[]) => str(pick(raw, ...keys)) ?? '';
 const n = (raw: unknown, ...keys: string[]) => num(pick(raw, ...keys));
 
 function errorText(e: unknown) {
-  if (e instanceof ApiError && e.status === 403) return '관리자 권한이 필요해요. 관리자 계정(users.is_admin)으로 로그인해 주세요.';
+  if (e instanceof ApiError && e.status === 403) return '관리자 권한이 필요해요. 관리자 계정으로 로그인해 주세요.';
   return e instanceof Error ? e.message : '불러오지 못했어요.';
 }
 
@@ -1504,7 +1504,7 @@ export function AdminPage() {
   return (
     <>
       <PageTitle title="관리자" />
-      <p className="record-note">관리자 계정(users.is_admin)으로만 동작해요. 모든 작업은 서버에 바로 반영되니 확인 후 실행해 주세요.</p>
+      <p className="record-note">모든 작업은 서버에 바로 반영되니 확인 후 실행해 주세요.</p>
       <div className="request-tabs tx-tabs admin-tabs" role="tablist" aria-label="관리자 메뉴">
         {tabs.map(([key, label]) => (
           <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>
