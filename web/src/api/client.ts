@@ -15,7 +15,15 @@ export class ApiError extends Error {
   }
 }
 
-const NO_REFRESH = ['/api/auth/login', '/api/auth/refresh', '/api/auth/register'];
+// 로그인 없이 쓰는 인증 API: 저장된 토큰을 붙이지 않는다(만료·무효 토큰이 붙으면 서버가 401로 막는다).
+const NO_REFRESH = [
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/auth/register',
+  '/api/auth/password-reset/request',
+  '/api/auth/password-reset/confirm',
+  '/api/auth/email-verification/confirm',
+];
 let refreshing: Promise<boolean> | null = null;
 
 async function refreshTokens(): Promise<boolean> {
@@ -55,7 +63,7 @@ function withAuth(request: Request): Request {
 async function authFetch(input: Request): Promise<Response> {
   const path = new URL(input.url, location.origin).pathname;
   // 로그인·가입·갱신에는 저장된 토큰을 붙이지 않는다. 만료·무효 토큰이 남아 있으면 서버가 401로 막는다.
-  if (NO_REFRESH.includes(path)) return fetch(input);
+  if (NO_REFRESH.some((p) => path.endsWith(p))) return fetch(input); // API 주소에 경로 접두어가 있어도 맞게
   const retry = input.clone();
   const response = await fetch(withAuth(input));
   if (response.status !== 401) return response;

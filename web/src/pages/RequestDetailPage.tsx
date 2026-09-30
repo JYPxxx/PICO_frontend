@@ -183,17 +183,18 @@ function ConfirmModal({ title, children, submitText, onClose, onConfirm }: { tit
 }
 
 function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; upfrontApplies: boolean; onClose: () => void; onSubmit: (agreed: boolean, note: string) => Promise<unknown> }) {
-  const [agreed, setAgreed] = useState(true);
+  // 되돌릴 수 없는 선택이라 기본값 없이 직접 고르게 한다.
+  const [agreed, setAgreed] = useState<boolean | null>(null);
   const [note, setNote] = useState('');
   const [pending, setPending] = useState(false);
-  const missingReason = !agreed && !note.trim();
+  const missingReason = agreed === false && !note.trim();
   return (
     <Modal title="예매 결과 확인" onClose={onClose}>
       <form
         noValidate
         onSubmit={async (e) => {
           e.preventDefault();
-          if (missingReason) return;
+          if (agreed === null || missingReason) return;
           setPending(true);
           await onSubmit(agreed, note.trim());
           setPending(false);
@@ -205,23 +206,24 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
         <fieldset className="tx-methods">
           <legend>결과 확인</legend>
           <label>
-            <input type="radio" name="agreed" checked={agreed} onChange={() => setAgreed(true)} />
+            <input type="radio" name="agreed" checked={agreed === true} onChange={() => setAgreed(true)} />
             <span>
               <strong>동의해요</strong>
               <small>도우미가 등록한 결과로 거래가 완료돼요.</small>
             </span>
           </label>
           <label>
-            <input type="radio" name="agreed" checked={!agreed} onChange={() => setAgreed(false)} />
+            <input type="radio" name="agreed" checked={agreed === false} onChange={() => setAgreed(false)} />
             <span>
               <strong>이의가 있어요</strong>
               <small>운영팀이 증빙을 보고 최종 결과를 정해요. 증빙이 없으면 도우미에게 제출을 요청해요.</small>
             </span>
           </label>
         </fieldset>
-        {agreed && r.agentResult === 'FAILURE' && upfrontApplies && (
+        {agreed === true && r.agentResult === 'FAILURE' && upfrontApplies && (
           <Notice>동의하면 착수비는 도우미에게 지급돼요. 도우미가 예매를 시도하지 않았다고 생각되면 '이의가 있어요'를 골라 주세요.</Notice>
         )}
+        {agreed !== null && (
         <Field
           label={agreed ? '확인 메모' : '이의 사유'}
           required={!agreed}
@@ -229,12 +231,13 @@ function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; u
         >
           <textarea rows={3} required={!agreed} maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={agreed ? '선택 입력' : '예: 안내받은 좌석과 실제 예매 좌석이 달라요.'} />
         </Field>
+        )}
         <div className="modal-actions">
           <button type="button" className="btn secondary" onClick={onClose}>
             돌아가기
           </button>
-          <button type="submit" className="btn primary" disabled={missingReason || pending}>
-            {pending ? '처리 중…' : agreed ? '결과에 동의' : '이의 제기'}
+          <button type="submit" className="btn primary" disabled={agreed === null || missingReason || pending}>
+            {pending ? '처리 중…' : agreed === null ? '동의 또는 이의를 골라 주세요' : agreed ? '결과에 동의' : '이의 제기'}
           </button>
         </div>
       </form>
@@ -291,6 +294,8 @@ export function RequestDetailPage() {
   const final = r.finalResult ?? (r.status === 'COMPLETED' && r.requesterResult === r.agentResult ? r.agentResult : undefined);
   // 착수비 선지급·지급 안내는 안전거래이고 착수비가 있을 때만 맞는 말이다.
   const upfrontApplies = !!finalized?.safePayment && (finalized?.upfrontFeeKrw ?? 0) > 0;
+  // 이용자 결과 확인 기한(서버 계산). 도우미가 결과 뒤 증빙을 추가하면 다시 24시간.
+  const confirmDue = r.resultConfirmDueAt ? utcToLocal(r.resultConfirmDueAt) : '';
   // 도우미가 결과를 내지 않아 운영팀이 종결한 거래(결과 없이 완료)
   const noResultClosed = r.status === 'COMPLETED' && !r.agentResult && !!r.adminResolutionNote;
   const counterpartId = agent ? r.requesterId : r.agentId;
@@ -474,7 +479,11 @@ export function RequestDetailPage() {
                 </button>
                 <p className="record-note">
                   운영팀이 확인해 결과 미제출로 종결하면
-                  {finalized?.safePayment ? ' 착수비와 성공보수를 환불받을 수 있어요(이용료 제외, 착수비가 이미 지급됐으면 성공보수만).' : ' 거래가 실패로 끝나요.'}
+                  {!finalized?.safePayment
+                    ? ' 거래가 실패로 끝나요.'
+                    : upfrontApplies
+                      ? ' 착수비와 성공보수를 환불받을 수 있어요(이용료 제외, 착수비가 이미 지급됐으면 성공보수만).'
+                      : ' 성공보수를 환불받을 수 있어요(이용료 제외).'}
                 </p>
               </>
             )}
@@ -483,13 +492,13 @@ export function RequestDetailPage() {
       case 'result_submitted':
         return agent ? (
           <>
-            <Notice>이용자가 결과를 확인하고 있어요. 24시간 동안 답이 없으면 운영팀이 확정해요.</Notice>
+            <Notice>이용자가 결과를 확인하고 있어요. {confirmDue ? `${confirmDue}까지` : '24시간 동안'} 답이 없으면 운영팀이 확정해요. 추가 자료를 올리면 그때부터 다시 24시간이에요.</Notice>
             {go(`/requests/${r.id}/result`, '추가 자료 올리기', 'secondary')}
           </>
         ) : (
           <>
             {btn('예매 결과 확인하기', () => setDialog('result'))}
-            <Notice>24시간 안에 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정해요.</Notice>
+            <Notice>{confirmDue ? `${confirmDue}까지` : '24시간 안에'} 동의하거나 이의를 제기해 주세요. 답이 없으면 운영팀이 확정해요.</Notice>
           </>
         );
       case 'disputed':
@@ -595,7 +604,7 @@ export function RequestDetailPage() {
                     <strong>{paymentNames[paymentStatus] ?? paymentStatus}</strong>
                     <strong>{money(finalized.upfrontFeeKrw + finalized.successFeeKrw + finalized.safetyFeeKrw)}원</strong>
                   </div>
-                  {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus)} reload={reload} />}
+                  {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus, finalized.upfrontFeeKrw)} reload={reload} />}
                 </>
               ) : (
                 <>
@@ -607,10 +616,14 @@ export function RequestDetailPage() {
                   </div>
                   <Notice>
                     {r.upfrontForfeited
-                      ? '운영팀 종결로 착수비는 도우미에게 지급되지 않아요. 착수비와 성공보수 환불을 요청할 수 있어요. 이용료는 환불되지 않아요.'
-                      : '결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 지급돼요(운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않고 환불). 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 지급돼요. 이용료는 환불되지 않아요.'}
+                      ? upfrontApplies
+                        ? '운영팀 종결로 착수비는 도우미에게 지급되지 않아요. 착수비와 성공보수 환불을 요청할 수 있어요. 이용료는 환불되지 않아요.'
+                        : '운영팀 종결로 성공보수 환불을 요청할 수 있어요. 이용료는 환불되지 않아요.'
+                      : upfrontApplies
+                        ? '결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 지급돼요(운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않고 환불). 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 지급돼요. 이용료는 환불되지 않아요.'
+                        : '결제 금액을 보관하는 단계예요. 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 도우미에게 지급돼요. 이용료는 환불되지 않아요.'}
                   </Notice>
-                  {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus)} reload={reload} />}
+                  {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus, finalized.upfrontFeeKrw)} reload={reload} />}
                 </>
               )}
             </TxCard>
@@ -627,15 +640,19 @@ export function RequestDetailPage() {
               {(r.upfrontForfeited || noResultClosed) && (
                 <Notice tone="error">
                   {(noResultClosed ? '도우미가 결과를 등록하지 않아 운영팀이 실패로 종결했어요.' : '운영팀이 예매 시도를 확인하지 못해 실패로 종결했어요.') +
-                    (agent
-                      ? r.upfrontForfeited
-                        ? ' 착수비는 지급되지 않아요.'
-                        : ' 이미 지급된 착수비는 그대로이고 성공보수는 지급되지 않아요.'
-                      : !finalized?.safePayment
-                        ? ''
-                        : r.upfrontForfeited
-                          ? ' 착수비와 성공보수를 환불받을 수 있어요(이용료 제외).'
-                          : ' 착수비가 이미 지급돼 성공보수만 환불받을 수 있어요(이용료 제외).')}
+                    (!finalized?.safePayment
+                      ? '' // 직접 거래: 플랫폼이 돈을 다루지 않는다
+                      : agent
+                        ? !upfrontApplies
+                          ? ' 성공보수는 지급되지 않아요.'
+                          : r.upfrontForfeited
+                            ? ' 착수비와 성공보수는 지급되지 않아요.'
+                            : ' 이미 지급된 착수비는 그대로이고 성공보수는 지급되지 않아요.'
+                        : !upfrontApplies
+                          ? ' 성공보수를 환불받을 수 있어요(이용료 제외).'
+                          : r.upfrontForfeited
+                            ? ' 착수비와 성공보수를 환불받을 수 있어요(이용료 제외).'
+                            : ' 착수비가 이미 지급돼 성공보수만 환불받을 수 있어요(이용료 제외).')}
                 </Notice>
               )}
               <p className="prose" style={{ whiteSpace: 'pre-wrap' }}>{r.adminResolutionNote}</p>
@@ -691,7 +708,7 @@ export function RequestDetailPage() {
                   </div>
                 );
               })}
-              {!agent && latestEvidence?.status === 'SUBMITTED' && (
+              {!agent && latestEvidence?.status === 'SUBMITTED' && ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(r.status) && (
                 <div className="tx-request-actions">
                   <button
                     type="button"
@@ -761,6 +778,7 @@ export function RequestDetailPage() {
                   {r.requesterResultNote ? ` · ${r.requesterResultNote}` : ''}
                 </Notice>
               )}
+              {r.disputeNote && <Notice tone="error">이용자 이의 사유: {r.disputeNote}</Notice>}
               {final && r.status === 'COMPLETED' && <Notice tone="success">최종 결과: {resultNames[final]}</Notice>}
             </TxCard>
           )}

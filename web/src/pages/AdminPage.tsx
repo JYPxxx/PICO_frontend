@@ -644,7 +644,7 @@ function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAs
   );
 }
 
-function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upfrontStarted: boolean) => void; version: number }) {
+function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upfrontStarted: boolean, reviewReason: string) => void; version: number }) {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })));
   useEffect(() => {
     if (version) reload();
@@ -673,6 +673,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
                   ['도우미 결과', `${resultLabels[s(row, 'agentResult')] ?? s(row, 'agentResult')} · ${s(row, 'agentResultNote')}`],
                   ['실제 확보 내용', s(row, 'actualOutcomeDescription')],
                   ['결과 등록 시각', utcToLocal(s(row, 'agentResultSubmittedAt'))],
+                  ['이용자 확인 기한', overdue ? utcToLocal(s(row, 'resultConfirmDueAt')) : ''],
                   ['이의 사유', s(row, 'disputeNote')],
                   ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
                   ['소명', [`${n(row, 'statementCount') ?? 0}건`, pick(row, 'awaitingRequesterReply') === true && '이용자 답변 대기', pick(row, 'awaitingAgentReply') === true && '도우미 답변 대기'].filter(Boolean).join(' · ')],
@@ -682,7 +683,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
                 <button type="button" className="btn secondary" onClick={() => setShown({ id, disputed: !overdue })}>
                   증빙·소명 보기
                 </button>
-                <button type="button" className="btn primary" onClick={() => onPick(id, flag(row, 'upfrontPayoutStarted'))}>
+                <button type="button" className="btn primary" onClick={() => onPick(id, flag(row, 'upfrontPayoutStarted'), s(row, 'reviewReason'))}>
                   결과 확정
                 </button>
               </Item>
@@ -776,7 +777,10 @@ function RequestsTab() {
   const { pending, run } = useAction();
   const [requestId, setRequestId] = useState('');
   // UNVERIFIED = 실패 · 시도 미확인: FAILURE + attemptUnverified(착수비 미지급, 이용자 착수비·성공보수 환불)
-  const [result, setResult] = useState<components['schemas']['RequestResult'] | 'UNVERIFIED'>('SUCCESS');
+  // 되돌릴 수 없는 결정이라 기본값 없이 직접 고르게 한다('' = 아직 안 고름).
+  const [result, setResult] = useState<components['schemas']['RequestResult'] | 'UNVERIFIED' | ''>('');
+  // 목록에서 고른 요청의 확정 계기(DISPUTED|CONFIRMATION_OVERDUE). 그 사이 바뀌면 서버가 409로 막는다.
+  const [reviewReason, setReviewReason] = useState('');
   const [note, setNote] = useState('');
   // 목록에서 고른 요청의 착수비 지급 여부(지급이 시작됐으면 시도 미확인 종결을 고를 수 없다). 직접 입력하면 모른다(null).
   const [upfrontStarted, setUpfrontStarted] = useState<boolean | null>(null);
@@ -785,14 +789,19 @@ function RequestsTab() {
 
   async function resolve(e: FormEvent) {
     e.preventDefault();
-    if (!Number(requestId) || !note.trim()) return;
+    if (!Number(requestId) || !note.trim() || !result) return;
     const unverified = result === 'UNVERIFIED';
     const ok = await run(async () => {
       try {
         await unwrap(
           api.POST('/api/admin/requests/{requestId}/resolve', {
             params: { path: { requestId: Number(requestId) } },
-            body: { result: unverified ? 'FAILURE' : result, note: note.trim(), attemptUnverified: unverified },
+            body: {
+              result: unverified ? 'FAILURE' : result,
+              note: note.trim(),
+              attemptUnverified: unverified,
+              ...(reviewReason ? { reviewReason: reviewReason as 'DISPUTED' | 'CONFIRMATION_OVERDUE' } : {}),
+            },
           }),
         );
       } catch (err) {
@@ -801,7 +810,7 @@ function RequestsTab() {
           throw new Error(
             unverified
               ? '착수비 지급이 이미 진행돼 시도 미확인으로 종결할 수 없어요. 다른 결과로 확정해 주세요.'
-              : '이미 확정됐거나 지금은 확정할 수 없는 요청이에요(이용자가 먼저 답했을 수 있어요). 목록을 새로 고쳤어요.',
+              : '이미 확정됐거나 목록을 본 뒤 상태가 바뀐 요청이에요(이용자가 먼저 동의하거나 이의를 제기했을 수 있어요). 목록을 새로 고쳤으니 다시 확인해 주세요.',
           );
         }
         if (err instanceof ApiError && err.status === 403) throw new Error('본인이 당사자인 거래는 확정할 수 없어요.');
@@ -810,7 +819,8 @@ function RequestsTab() {
     }, unverified ? '시도 미확인으로 종결했어요. 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요.' : '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.');
     if (ok) {
       setNote('');
-      setResult('SUCCESS');
+      setResult('');
+      setReviewReason('');
       setRequestId('');
       setUpfrontStarted(null);
       setVersion((v) => v + 1);
@@ -821,9 +831,10 @@ function RequestsTab() {
     <>
       <ResultReviewList
         version={version}
-        onPick={(id, started) => {
+        onPick={(id, started, reason) => {
           setRequestId(String(id));
-          setResult('SUCCESS'); // 앞 건의 선택(특히 시도 미확인)이 남지 않게
+          setResult(''); // 앞 건의 선택(특히 시도 미확인)이 남지 않게
+          setReviewReason(reason);
           setUpfrontStarted(started);
           document.getElementById('admin-resolve-form')?.scrollIntoView({ behavior: 'smooth' });
         }}
@@ -842,11 +853,15 @@ function RequestsTab() {
                 onChange={(e) => {
                   setRequestId(e.target.value.replace(/[^0-9]/g, ''));
                   setUpfrontStarted(null);
+                  setReviewReason('');
                 }}
               />
             </Field>
             <Field label="최종 결과" required>
-              <select value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
+              <select required value={result} onChange={(e) => setResult(e.target.value as typeof result)}>
+                <option value="" disabled>
+                  결과를 골라 주세요
+                </option>
                 <option value="SUCCESS">성공</option>
                 <option value="PARTIAL">부분 성공</option>
                 <option value="FAILURE">실패 (착수비는 도우미 몫)</option>
@@ -868,7 +883,7 @@ function RequestsTab() {
               <Link to={`/requests/${requestId}`}>요청 #{requestId} 상세 보기</Link> (관리자가 거래 당사자가 아니면 상세가 열리지 않을 수 있어요)
             </p>
           )}
-          <button type="submit" className="btn primary" disabled={pending || !Number(requestId) || !note.trim()}>
+          <button type="submit" className="btn primary" disabled={pending || !Number(requestId) || !note.trim() || !result}>
             결과 확정
           </button>
         </form>

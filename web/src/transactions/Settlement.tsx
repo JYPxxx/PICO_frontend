@@ -177,11 +177,13 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
 }
 
 /** 이용자가 요청할 수 있는 환불(가이드 11-3). 어떤 경우인지 판단해 버튼 문구를 정한다. 금액은 서버가 계산한다. */
-export function refundCase(r: TxRequest, final: RequestResult | undefined, partial: Raw | null, paymentStatus: string) {
+export function refundCase(r: TxRequest, final: RequestResult | undefined, partial: Raw | null, paymentStatus: string, upfrontFeeKrw = 0) {
   if (!['PAID', 'PARTIALLY_REFUNDED'].includes(paymentStatus.toUpperCase())) return null;
   if (r.status === 'MATCHED') return { label: '착수 전 전액 환불 요청', text: '착수 전이라 착수비·성공보수·이용료 전액이 환불돼요.' };
   if (r.status === 'COMPLETED' && final === 'FAILURE' && r.upfrontForfeited)
-    return { label: '착수비·성공보수 환불 요청', text: '운영팀이 예매 시도를 확인하지 못해 착수비와 성공보수가 환불돼요. 이용료는 환불되지 않아요.' };
+    return upfrontFeeKrw > 0
+      ? { label: '착수비·성공보수 환불 요청', text: '운영팀 종결로 착수비와 성공보수가 환불돼요. 이용료는 환불되지 않아요.' }
+      : { label: '성공보수 환불 요청', text: '운영팀 종결로 성공보수가 환불돼요. 이용료는 환불되지 않아요.' };
   if (r.status === 'COMPLETED' && final === 'FAILURE') return { label: '성공보수 환불 요청', text: '예매 실패로 성공보수가 환불돼요. 착수비와 이용료는 환불되지 않아요.' };
   // 부분 성공: 이용자가 동의하면 서버가 환불을 자동 요청하고, 운영팀이 결정한 경우에만 이용자가 직접 요청한다.
   if (r.status === 'COMPLETED' && final === 'PARTIAL' && str(partial?.status) === 'ADMIN_DECIDED')

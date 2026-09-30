@@ -71,7 +71,7 @@ export function ReportPage() {
         <form noValidate onSubmit={submit}>
           {noResult && (
             <Notice>
-              운영팀이 확인한 뒤 도우미 결과 미제출로 거래를 실패 종결할 수 있어요. 안전거래라면 착수비와 성공보수를 환불받을 수 있어요(이용료 제외, 착수비가 이미 지급됐으면 성공보수만).
+              운영팀이 확인한 뒤 도우미 결과 미제출로 거래를 실패 종결할 수 있어요. 안전거래라면 성공보수를 환불받고, 착수비가 있고 아직 지급되지 않았다면 착수비도 환불받아요(이용료 제외).
             </Notice>
           )}
           <Field label="신고 사유" required>

@@ -17,6 +17,8 @@ const listeners = new Set<() => void>();
 let generation = 0;
 let inFlight: Promise<void> | null = null;
 let lastFetch = 0;
+/** 읽음 처리처럼 로컬에서 목록을 바꾸면 늘린다. 그 전에 시작된 응답은 낡은 값이라 버리고 다시 받는다. */
+let mutations = 0;
 let pollers = 0;
 let timer: number | undefined;
 
@@ -33,20 +35,26 @@ function subscribe(listener: () => void) {
 }
 
 function load(force = false): Promise<void> {
-  if (inFlight) return inFlight;
+  // 강제 새로고침(읽음 처리 뒤 등)은 이미 가고 있는 요청이 끝난 뒤 한 번 더 받는다(그 요청은 변경 전 값일 수 있다).
+  if (inFlight) return force ? inFlight.then(() => load(true)) : inFlight;
   if (!force && Date.now() - lastFetch < MERGE_MS) return Promise.resolve();
   const gen = generation;
+  const seen = mutations;
+  let stale = false;
   inFlight = unwrap<Notification[]>(api.GET('/api/notifications', { params: { query: { page: 0, size: 50 } } }))
     .then(
       (list) => {
-        if (gen === generation && Array.isArray(list)) emit(list);
+        if (gen !== generation || !Array.isArray(list)) return;
+        if (seen !== mutations) stale = true; // 요청 중에 읽음 처리가 있었다: 덮어쓰지 않고 다시 받는다
+        else emit(list);
       },
       () => undefined,
     )
     .finally(() => {
       inFlight = null;
       lastFetch = Date.now();
-    });
+    })
+    .then(() => (stale ? load(true) : undefined));
   return inFlight;
 }
 
@@ -86,11 +94,16 @@ export function useNotifications(key: string) {
   useEffect(() => (loggedIn ? startPolling() : undefined), [loggedIn]);
 
   async function open(n: Notification) {
+    mutations++;
     emit(items.map((x) => (x.notificationId === n.notificationId ? { ...x, readAt: x.readAt ?? new Date().toISOString() } : x)));
     await unwrap(api.GET('/api/notifications/{notificationId}', { params: { path: { notificationId: n.notificationId } } })).catch(() => null);
+    mutations++;
   }
   async function readAll() {
+    mutations++;
+    emit(items.map((x) => ({ ...x, readAt: x.readAt ?? new Date().toISOString() })));
     await unwrap(api.PATCH('/api/notifications/read-all')).catch(() => null);
+    mutations++;
     await load(true);
   }
   const reload = () => load(true);
