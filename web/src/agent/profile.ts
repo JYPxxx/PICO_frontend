@@ -2,6 +2,7 @@ import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { loadPortOne } from '../api/portone';
 import type { components } from '../api/schema';
+import { mimeOf } from '../transactions/model';
 
 // 도우미 프로필(버전)·인증·경력 증빙. 프로필 버전 응답 필드는 명세에 없어(data: object) pick()으로 찾는다.
 // 상태 값은 백엔드 서비스 흐름 가이드 4장: DRAFT → PENDING → PUBLISHED / REJECTED, 새 버전이 게시되면 이전 게시본은 ARCHIVED.
@@ -152,7 +153,7 @@ export async function uploadProfileImage(profileId: number, file: File) {
 export async function submitCareerCase(profileId: number, caseNumber: number, files: File[], description: string) {
   const storageKeys: string[] = [];
   for (const f of files) {
-    const target = await unwrap<Raw>(api.POST('/api/evidence-files/upload-url', { body: { purpose: 'CAREER', originalName: f.name, mimeType: f.type || 'application/octet-stream', sizeBytes: f.size } }));
+    const target = await unwrap<Raw>(api.POST('/api/evidence-files/upload-url', { body: { purpose: 'CAREER', originalName: f.name, mimeType: mimeOf(f), sizeBytes: f.size } }));
     storageKeys.push(await putFile(target, f));
   }
   await unwrap(

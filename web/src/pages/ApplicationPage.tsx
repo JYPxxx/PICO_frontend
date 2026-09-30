@@ -627,7 +627,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                   </div>
                   {(!submittedCases.includes(n) || career[n]) && (n === 1 || submittedCases.includes(n - 1) || submittedCases.includes(n)) ? (
                     <>
-                      <FilePicker files={career[n]?.files ?? []} onChange={(files) => setCareer({ ...career, [n]: { description: career[n]?.description ?? '', files: files.slice(0, 10) } })} />
+                      <FilePicker kind="career" files={career[n]?.files ?? []} onChange={(files) => setCareer({ ...career, [n]: { description: career[n]?.description ?? '', files: files.slice(0, 10) } })} />
                       <Field label="설명" required>
                         <textarea rows={3} maxLength={10000} value={career[n]?.description ?? ''} onChange={(e) => setCareer({ ...career, [n]: { files: career[n]?.files ?? [], description: e.target.value } })} />
                       </Field>

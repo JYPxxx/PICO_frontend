@@ -7,7 +7,8 @@ import { EvidenceFileNames, EvidenceThumb, Field, FilePicker, Notice, TxCard, us
 // 분쟁 소명: 이의 제기(DISPUTED) 동안 운영팀 질문과 내 소명만 보인다. 상대방은 내 소명을 볼 수 없다.
 // GET/POST /api/requests/{requestId}/dispute/messages (첨부는 purpose=DISPUTE 업로드)
 export function DisputeCard({ requestId, disputed }: { requestId: number; disputed: boolean }) {
-  const [load, reload] = useLoad(() => unwrap<unknown>(api.GET('/api/requests/{requestId}/dispute/messages', { params: { path: { requestId } } })).then(list), [requestId]);
+  // 운영팀 질문 알림을 보고 돌아오면 새 질문이 보이도록 창 복귀 때 다시 불러온다.
+  const [load, reload] = useLoad(() => unwrap<unknown>(api.GET('/api/requests/{requestId}/dispute/messages', { params: { path: { requestId } } })).then(list), [requestId], { refreshOnFocus: true });
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState('');
@@ -72,7 +73,7 @@ export function DisputeCard({ requestId, disputed }: { requestId: number; disput
           <Field label={openQuestion ? '답변' : '소명 내용'} required>
             <textarea rows={4} required maxLength={5000} value={body} onChange={(e) => setBody(e.target.value)} placeholder="예: 예매 완료 화면을 첨부해요. 안내드린 좌석은 1층 B구역이었어요." />
           </Field>
-          <FilePicker files={files} onChange={setFiles} />
+          <FilePicker kind="dispute" files={files} onChange={setFiles} />
           <div className="tx-form-footer">
             <span role="status">{progress}</span>
             <button type="submit" className="btn primary" disabled={pending || !body.trim()}>

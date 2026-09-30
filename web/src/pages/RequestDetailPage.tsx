@@ -182,7 +182,7 @@ function ConfirmModal({ title, children, submitText, onClose, onConfirm }: { tit
   );
 }
 
-function ResultModal({ r, onClose, onSubmit }: { r: TxRequest; onClose: () => void; onSubmit: (agreed: boolean, note: string) => Promise<unknown> }) {
+function ResultModal({ r, upfrontApplies, onClose, onSubmit }: { r: TxRequest; upfrontApplies: boolean; onClose: () => void; onSubmit: (agreed: boolean, note: string) => Promise<unknown> }) {
   const [agreed, setAgreed] = useState(true);
   const [note, setNote] = useState('');
   const [pending, setPending] = useState(false);
@@ -219,7 +219,14 @@ function ResultModal({ r, onClose, onSubmit }: { r: TxRequest; onClose: () => vo
             </span>
           </label>
         </fieldset>
-        <Field label={agreed ? '확인 메모' : '이의 사유'} required={!agreed}>
+        {agreed && r.agentResult === 'FAILURE' && upfrontApplies && (
+          <Notice>동의하면 착수비는 도우미에게 지급돼요. 도우미가 예매를 시도하지 않았다고 생각되면 '이의가 있어요'를 골라 주세요.</Notice>
+        )}
+        <Field
+          label={agreed ? '확인 메모' : '이의 사유'}
+          required={!agreed}
+          helper={agreed ? undefined : '이의 사유는 도우미에게도 보여요. 도우미에게 보이면 안 되는 내용은 이의 제기 후 분쟁 소명에 남겨 주세요(운영팀만 봐요).'}
+        >
           <textarea rows={3} required={!agreed} maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} placeholder={agreed ? '선택 입력' : '예: 안내받은 좌석과 실제 예매 좌석이 달라요.'} />
         </Field>
         <div className="modal-actions">
@@ -282,6 +289,10 @@ export function RequestDetailPage() {
   const paymentId = num(pick(d.payment, 'paymentId')) ?? latest?.paymentId ?? r.paymentId;
   const hasActivePayment = (!!paymentStatus && !inactivePayment.includes(paymentStatus)) || (!paymentStatus && !!finalized?.safePayment && stage === 'ready');
   const final = r.finalResult ?? (r.status === 'COMPLETED' && r.requesterResult === r.agentResult ? r.agentResult : undefined);
+  // 착수비 선지급·지급 안내는 안전거래이고 착수비가 있을 때만 맞는 말이다.
+  const upfrontApplies = !!finalized?.safePayment && (finalized?.upfrontFeeKrw ?? 0) > 0;
+  // 도우미가 결과를 내지 않아 운영팀이 종결한 거래(결과 없이 완료)
+  const noResultClosed = r.status === 'COMPLETED' && !r.agentResult && !!r.adminResolutionNote;
   const counterpartId = agent ? r.requesterId : r.agentId;
   const counterpartName = agent ? r.requesterName : r.agentName;
   const path = { params: { path: { requestId } } };
@@ -321,6 +332,27 @@ export function RequestDetailPage() {
   }
 
   const back = agent ? (r.status === 'PENDING' ? { label: '받은 요청', to: '/leads' } : { label: '매칭 관리', to: '/matches' }) : { label: '내 활동', to: '/requests' };
+
+  /** 시도 증빙 카드 안내. 착수비 문구는 안전거래·착수비가 있을 때만, 종결 방식에 맞춰 보여 준다. */
+  function attemptNote() {
+    if (r.status === 'COMPLETED' || r.status === 'CANCELLED') {
+      if (!upfrontApplies) return '';
+      return r.upfrontForfeited ? '운영팀 종결로 착수비는 지급되지 않았어요.' : '결과가 확정돼 착수비 지급 대상이에요.';
+    }
+    const upfront = upfrontApplies ? ' 결과가 확정되면 착수비가 지급돼요(운영팀이 예매 시도 미확인으로 종결하면 제외).' : '';
+    if (agent) {
+      if (latestEvidence?.status === 'REJECTED')
+        return stage === 'in_progress'
+          ? '반려 사유를 반박할 자료가 있으면 다시 올려 주세요(선택). 반려된 증빙으로도 결과를 등록할 수 있어요.' + upfront
+          : "반려 사유를 반박할 자료가 있으면 '추가 자료 올리기'로 올려 주세요. 이용자가 바로 보고, 이의가 생기면 운영팀이 함께 판단해요." + upfront;
+      return upfrontApplies
+        ? '이용자가 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인되지 않아도 결과가 확정되면 지급돼요(운영팀이 예매 시도 미확인으로 종결하면 제외).'
+        : '실패로 결과를 등록할 때 이 증빙이 근거가 돼요.';
+    }
+    return upfrontApplies
+      ? '시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급되고, 나중에 시도 미확인 환불 대상에서 빠져요. 승인하지 않아도 결과가 확정되면 지급돼요(운영팀이 예매 시도 미확인으로 종결하면 제외).'
+      : '시도 증빙은 실패 결과의 근거가 돼요.';
+  }
 
   function actions() {
     const go = (to: string, text: string, cls = 'primary') => (
@@ -420,13 +452,33 @@ export function RequestDetailPage() {
             {go(`/requests/${r.id}/result`, '결과 등록')}
             {(!latestEvidence || latestEvidence.status === 'REJECTED') && (
               <>
-                {go(`/requests/${r.id}/evidence`, latestEvidence ? '시도 증빙 다시 올리기 (착수비 먼저 받기)' : '시도 증빙 올리기 (착수비 먼저 받기)', 'secondary')}
-                <p className="record-note">실패로 결과를 등록하려면 꼭 필요해요. 성공·부분 성공이면 없어도 되고, 이용자가 승인하면 착수비를 결과 전에 먼저 받아요.</p>
+                {go(`/requests/${r.id}/evidence`, `${latestEvidence ? '시도 증빙 다시 올리기' : '시도 증빙 올리기'}${upfrontApplies ? ' (착수비 먼저 받기)' : ''}`, 'secondary')}
+                <p className="record-note">
+                  실패로 결과를 등록하려면 꼭 필요해요. 성공·부분 성공이면 없어도 돼요.
+                  {upfrontApplies && ' 이용자가 승인하면 착수비를 결과 전에 먼저 받아요.'}
+                </p>
               </>
             )}
           </>
         ) : (
-          <Notice>도우미가 예매를 진행하고 있어요. 시도 증빙이 올라오면 확인해 주세요.</Notice>
+          <>
+            <Notice>도우미가 예매를 진행하고 있어요. 시도 증빙이 올라오면 확인해 주세요.</Notice>
+            {counterpartId && (
+              <>
+                <button
+                  type="button"
+                  className="btn ghost full"
+                  onClick={() => navigate(`/report?requestId=${r.id}&userId=${counterpartId}&name=${encodeURIComponent(counterpartName)}&topic=no-result`)}
+                >
+                  도우미가 결과를 등록하지 않나요? 운영팀에 알리기
+                </button>
+                <p className="record-note">
+                  운영팀이 확인해 결과 미제출로 종결하면
+                  {finalized?.safePayment ? ' 착수비와 성공보수를 환불받을 수 있어요(이용료 제외, 착수비가 이미 지급됐으면 성공보수만).' : ' 거래가 실패로 끝나요.'}
+                </p>
+              </>
+            )}
+          </>
         );
       case 'result_submitted':
         return agent ? (
@@ -553,7 +605,11 @@ export function RequestDetailPage() {
                     </strong>
                     <strong>{money(finalized.upfrontFeeKrw + finalized.successFeeKrw + finalized.safetyFeeKrw)}원</strong>
                   </div>
-                  <Notice>결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면, 성공보수는 결과가 성공으로 확정되면 도우미에게 지급돼요. 이용료는 환불되지 않아요.</Notice>
+                  <Notice>
+                    {r.upfrontForfeited
+                      ? '운영팀 종결로 착수비는 도우미에게 지급되지 않아요. 착수비와 성공보수 환불을 요청할 수 있어요. 이용료는 환불되지 않아요.'
+                      : '결제 금액을 보관하는 단계예요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면 도우미에게 지급돼요(운영팀이 예매 시도 미확인·결과 미제출로 종결하면 지급하지 않고 환불). 성공보수는 성공이면 전액, 부분 성공이면 정산한 금액만 지급돼요. 이용료는 환불되지 않아요.'}
+                  </Notice>
                   {!agent && paymentId && <RefundCard paymentId={paymentId} refunds={d.refunds} can={refundCase(r, final, d.partial, paymentStatus)} reload={reload} />}
                 </>
               )}
@@ -568,9 +624,18 @@ export function RequestDetailPage() {
 
           {r.adminResolutionNote && (
             <TxCard title="운영팀 확정 사유">
-              {r.upfrontForfeited && (
+              {(r.upfrontForfeited || noResultClosed) && (
                 <Notice tone="error">
-                  {agent ? '운영팀이 예매 시도를 확인하지 못해 실패로 종결했어요. 착수비는 지급되지 않아요.' : '운영팀이 예매 시도를 확인하지 못해 실패로 종결했어요. 안전거래라면 착수비와 성공보수를 환불받을 수 있어요.'}
+                  {(noResultClosed ? '도우미가 결과를 등록하지 않아 운영팀이 실패로 종결했어요.' : '운영팀이 예매 시도를 확인하지 못해 실패로 종결했어요.') +
+                    (agent
+                      ? r.upfrontForfeited
+                        ? ' 착수비는 지급되지 않아요.'
+                        : ' 이미 지급된 착수비는 그대로이고 성공보수는 지급되지 않아요.'
+                      : !finalized?.safePayment
+                        ? ''
+                        : r.upfrontForfeited
+                          ? ' 착수비와 성공보수를 환불받을 수 있어요(이용료 제외).'
+                          : ' 착수비가 이미 지급돼 성공보수만 환불받을 수 있어요(이용료 제외).')}
                 </Notice>
               )}
               <p className="prose" style={{ whiteSpace: 'pre-wrap' }}>{r.adminResolutionNote}</p>
@@ -650,15 +715,7 @@ export function RequestDetailPage() {
                   </Link>
                 </div>
               )}
-              <p className="record-note">
-                {agent
-                  ? latestEvidence?.status === 'REJECTED'
-                    ? stage === 'in_progress'
-                      ? '반려 사유를 반박할 자료가 있으면 다시 올려 주세요(선택). 반려된 증빙으로도 결과를 등록할 수 있고, 결과가 확정되면 착수비는 지급돼요.'
-                      : "반려 사유를 반박할 자료가 있으면 '추가 자료 올리기'로 올려 주세요. 이용자가 바로 보고, 이의가 생기면 운영팀이 함께 판단해요. 결과가 확정되면 착수비는 지급돼요."
-                    : '이용자가 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인되지 않아도 결과가 확정되면 지급돼요.'
-                  : '시도 증빙을 승인하면 착수비가 결과 전에 먼저 지급돼요. 승인하지 않아도 결과가 확정되면 지급돼요.'}
-              </p>
+              <p className="record-note">{attemptNote()}</p>
             </TxCard>
           )}
 
@@ -815,15 +872,31 @@ export function RequestDetailPage() {
       )}
       {dialog === 'start' && (
         <ConfirmModal title="예매를 시작할까요?" submitText="착수하기" onClose={close} onConfirm={() => act(() => unwrap(api.POST('/api/requests/{requestId}/start', path)), '착수했어요. 예매를 마치면 결과를 등록해 주세요.')}>
-          <p className="prose">착수하면 거래가 진행 중으로 바뀌어요. 예매를 시도한 화면(대기열·좌석 선택·매진 화면 등)은 꼭 캡처해 두세요. 실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요. 시도 증빙을 미리 올려 이용자가 승인하면 착수비를 결과 전에 먼저 받을 수 있어요.</p>
+          <p className="prose">
+            착수하면 거래가 진행 중으로 바뀌어요. 예매를 시도한 화면(대기열·좌석 선택·매진 화면 등)은 꼭 캡처하거나 녹화해 두세요. 실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요.
+            {upfrontApplies && ' 시도 증빙을 미리 올려 이용자가 승인하면 착수비를 결과 전에 먼저 받을 수 있어요.'}
+          </p>
         </ConfirmModal>
       )}
       {dialog === 'result' && (
         <ResultModal
           r={r}
+          upfrontApplies={upfrontApplies}
           onClose={close}
           onSubmit={(agreed, note) =>
-            act(() => unwrap(api.POST('/api/requests/{requestId}/result/confirm', { ...path, body: { agreed, note: note || undefined } })), agreed ? '결과 확인을 완료했어요.' : '이의를 접수했어요. 운영팀이 확인해 결과를 정해요.')
+            act(async () => {
+              try {
+                await unwrap(api.POST('/api/requests/{requestId}/result/confirm', { ...path, body: { agreed, note: note || undefined } }));
+              } catch (e) {
+                // 24시간이 지나 운영팀이 먼저 확정했거나 이미 처리된 경우: 최신 상태로 다시 보여 준다.
+                if (e instanceof ApiError && e.status === 409) {
+                  close();
+                  reload();
+                  throw new Error('이미 처리된 결과예요. 최신 상태로 새로 고쳤어요.');
+                }
+                throw e;
+              }
+            }, agreed ? '결과 확인을 완료했어요.' : '이의를 접수했어요. 운영팀이 확인해 결과를 정해요.')
           }
         />
       )}

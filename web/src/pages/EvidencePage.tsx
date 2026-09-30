@@ -2,7 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
-import { fetchDetail, latestAgreement, uploadAttemptFile, uploadResultFile, useLoad, type RequestResult } from '../transactions/model';
+import { useAuth } from '../auth/AuthContext';
+import { fetchDetail, latestAgreement, myUserId, uploadAttemptFile, uploadResultFile, useLoad, type RequestResult } from '../transactions/model';
 import { EvidenceFileNames, EvidenceThumb, Field, FilePicker, Notice, Rows, TxCard, useAction, utcToLocal } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -34,6 +35,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
   const { id } = useParams();
   const requestId = Number(id);
   const navigate = useNavigate();
+  const { me } = useAuth();
   const isResult = type === 'result';
   // 운영팀 파일 검토 결과를 보려고 창으로 돌아오면 다시 불러온다.
   const [load, reload] = useLoad(() => fetchDetail(requestId), [requestId], { refreshOnFocus: isResult });
@@ -63,6 +65,9 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
   // 결과를 낸 뒤 이용자 확인 중에도 추가 자료(결과 증빙)를 올릴 수 있다. 반려된 시도 증빙에 답할 때 쓴다.
   const confirming = isResult && stage === 'result_submitted';
   if (stage !== 'in_progress' && !disputed && !confirming) return <Navigate to={`/requests/${requestId}`} replace />;
+  // 도우미 전용 화면이다(서버도 403으로 막는다). 이용자가 주소로 들어오면 상세로 보낸다.
+  const myId = myUserId(me);
+  if (myId && r.agentId !== myId) return <Navigate to={`/requests/${requestId}`} replace />;
   const a = latestAgreement(agreements);
   const path = { params: { path: { requestId } } };
   const latestResult = latestOf(resultEvidences);
@@ -71,6 +76,10 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
   const latestAttempt = [...evidences].sort((x, y) => (y.revision ?? 0) - (x.revision ?? 0))[0];
   const attemptRejected = latestAttempt?.status === 'REJECTED';
   const attemptOnRecord = latestAttempt?.status === 'SUBMITTED' || latestAttempt?.status === 'APPROVED' || attemptRejected;
+  // 시도 증빙은 처음이거나 최신 증빙이 반려됐을 때만 새로 낼 수 있다(아니면 서버 409).
+  if (!isResult && latestAttempt && !attemptRejected) return <Navigate to={`/requests/${requestId}`} replace />;
+  // 착수비 선지급 안내는 안전거래이고 착수비가 있을 때만 맞는 말이다.
+  const upfrontApplies = !!a?.safePayment && (a?.upfrontFeeKrw ?? 0) > 0;
 
   async function upload(uploader: (f: File) => Promise<string>) {
     const keys: string[] = [];
@@ -90,6 +99,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     }, '시도 증빙을 올렸어요. 이용자가 확인하면 알려드릴게요.');
     setProgress('');
     if (ok) navigate(`/requests/${requestId}`, { replace: true });
+    else reload(); // 응답만 유실됐을 수 있으니 최신 상태로 다시 판단한다
   }
 
   async function submitResultEvidence(e: FormEvent<HTMLFormElement>) {
@@ -103,8 +113,8 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     if (ok) {
       setFiles([]);
       setDescription('');
-      reload();
     }
+    reload(); // 실패해도 서버에 저장됐을 수 있어 다시 불러온다
   }
 
   const conditions = (
@@ -119,7 +129,12 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
           ]}
         />
       </TxCard>
-      {!isResult && <Notice>실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요. 이용자가 승인하면 착수비를 결과 전에 먼저 받아요.</Notice>}
+      {!isResult && (
+        <Notice>
+          실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요.
+          {upfrontApplies && ' 안전거래라서 이용자가 승인하면 착수비를 결과 전에 먼저 받아요. 운영팀이 예매 시도를 확인하지 못해 종결하면 착수비는 지급되지 않아요.'}
+        </Notice>
+      )}
     </aside>
   );
 
@@ -138,9 +153,9 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                 <h3>
                   시도 증빙 자료 <em>*</em>
                 </h3>
-                <span>예매를 시도한 화면을 첨부해 주세요.</span>
+                <span>예매를 시도한 화면이나 화면 녹화를 첨부해 주세요.</span>
               </div>
-              <FilePicker files={files} onChange={setFiles} />
+              <FilePicker kind="attempt" files={files} onChange={setFiles} />
               <Notice>파일은 비공개 저장소에 올라가며, 거래 당사자와 운영팀만 확인할 수 있어요.</Notice>
               <div className="tx-form-footer">
                 <span role="status">{progress}</span>
@@ -196,13 +211,14 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                 ? '이용자가 결과에 이의를 제기했어요. 예매 내역·시도 화면 등 자료를 올리면 운영팀이 보고 최종 결과를 정해요.'
                 : '이용자가 결과를 확인하고 있어요. 시도 증빙이 반려됐거나 더 보여 줄 자료가 있으면 올려 주세요. 이용자가 바로 볼 수 있고, 이의가 생기면 운영팀 판단 자료가 돼요.'}
             </p>
+            {disputed && <Notice>여기 올린 자료는 이용자도 볼 수 있어요. 운영팀에게만 보여 줄 자료는 요청 상세의 분쟁 소명에 첨부해 주세요.</Notice>}
             {evidenceList}
             {scan === 'blocked' && <Notice tone="error">운영팀이 차단한 파일이 있어요. 다른 파일로 다시 올려 주세요.</Notice>}
             <form noValidate onSubmit={submitResultEvidence}>
               <Field label="설명">
                 <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 예매 완료 화면, 좌석 1층 B구역 8열" />
               </Field>
-              <FilePicker files={files} onChange={setFiles} />
+              <FilePicker kind="result" files={files} onChange={setFiles} />
               <div className="tx-form-footer">
                 <span role="status">{progress}</span>
                 <button type="submit" className="btn primary" disabled={pending || !files.length}>
@@ -250,6 +266,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
     }, '예매 결과를 등록했어요. 이용자가 24시간 안에 확인해요.');
     setProgress('');
     if (ok) navigate(`/requests/${requestId}`, { replace: true });
+    else reload();
   }
 
   return (
@@ -283,7 +300,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                   <Field label="설명">
                     <textarea name="evidenceDescription" rows={2} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:00 대기열 진입 화면(시각 표시 포함)" />
                   </Field>
-                  <FilePicker files={files} onChange={setFiles} />
+                  <FilePicker kind="attempt" files={files} onChange={setFiles} />
                 </>
               ) : attemptOnRecord ? (
                 <>
@@ -296,7 +313,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                   <Field label="추가 자료 설명">
                     <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:03 전석 매진 화면" />
                   </Field>
-                  <FilePicker files={files} onChange={setFiles} />
+                  <FilePicker kind="result" files={files} onChange={setFiles} />
                 </>
               ) : (
                 <>
@@ -304,7 +321,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
                   <Field label="설명">
                     <textarea name="evidenceDescription" rows={2} maxLength={16000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 20:00 대기열 진입, 20:03 전석 매진" />
                   </Field>
-                  <FilePicker files={files} onChange={setFiles} />
+                  <FilePicker kind="attempt" files={files} onChange={setFiles} />
                 </>
               )}
             </TxCard>
@@ -316,7 +333,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
               <Field label="설명">
                 <textarea name="evidenceDescription" rows={2} maxLength={10000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="예: 예매 완료 화면, 좌석 1층 B구역 8열" />
               </Field>
-              <FilePicker files={files} onChange={setFiles} />
+              <FilePicker kind="result" files={files} onChange={setFiles} />
             </TxCard>
           )}
 

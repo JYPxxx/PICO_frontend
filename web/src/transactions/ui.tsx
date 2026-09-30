@@ -3,7 +3,7 @@ import { str, type Raw } from '../api/pick';
 import { Icon } from '../ui/Icon';
 import { money } from '../ui/format';
 import { useToast } from '../ui/Toast';
-import { MAX_FILE_BYTES, endedStages, fileAccept, stageNames, type Role, type Stage } from './model';
+import { MAX_FILE_BYTES, acceptOf, endedStages, fileKinds, mimeOf, stageNames, type FileKind, type Role, type Stage } from './model';
 
 // 프로토타입 transactions.js의 card()/notice()/badge()/next()/progress()/rows() 마크업
 
@@ -173,25 +173,34 @@ export function Field({ label, required, helper, children }: { label: string; re
   );
 }
 
-/** 첨부 파일 선택(업로드는 제출할 때 한다). 20MB 초과·형식 오류는 바로 알려 준다. */
-export function FilePicker({ files, onChange }: { files: File[]; onChange: (files: File[]) => void }) {
+/** 첨부 파일 선택(업로드는 제출할 때 한다). 목적별 허용 형식·개수와 20MB 초과는 바로 알려 준다. */
+export function FilePicker({ files, onChange, kind }: { files: File[]; onChange: (files: File[]) => void; kind: FileKind }) {
   const [error, setError] = useState('');
+  const { types, label, max } = fileKinds[kind];
   return (
     <>
       <label className="upload-area tx-upload">
         <Icon name="upload" size={28} />
         <strong>파일 선택 또는 추가 첨부</strong>
-        <small>JPG · PNG · WEBP · GIF · PDF · MP4 · WEBM · 파일당 최대 20MB</small>
+        <small>{label} · 파일당 최대 20MB · 최대 {max}개</small>
         <input
           type="file"
           multiple
-          accept={fileAccept}
+          accept={acceptOf(kind)}
           onChange={(e) => {
             const picked = [...(e.target.files ?? [])];
             e.target.value = '';
             const tooBig = picked.filter((f) => f.size > MAX_FILE_BYTES);
-            setError(tooBig.length ? `${tooBig.map((f) => f.name).join(', ')}: 20MB를 넘어 첨부할 수 없어요.` : '');
-            onChange([...files, ...picked.filter((f) => f.size <= MAX_FILE_BYTES)]);
+            const wrongType = picked.filter((f) => !types.includes(mimeOf(f)));
+            const ok = picked.filter((f) => f.size <= MAX_FILE_BYTES && types.includes(mimeOf(f)));
+            const room = Math.max(0, max - files.length);
+            const messages = [
+              tooBig.length ? `${tooBig.map((f) => f.name).join(', ')}: 20MB를 넘어 첨부할 수 없어요.` : '',
+              wrongType.length ? `${wrongType.map((f) => f.name).join(', ')}: 이 자료에는 ${label} 형식만 올릴 수 있어요.` : '',
+              ok.length > room ? `파일은 최대 ${max}개까지 첨부할 수 있어요.` : '',
+            ].filter(Boolean);
+            setError(messages.join(' '));
+            onChange([...files, ...ok.slice(0, room)]);
           }}
         />
       </label>
