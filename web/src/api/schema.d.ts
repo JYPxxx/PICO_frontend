@@ -1023,7 +1023,7 @@ export interface paths {
         put?: never;
         /**
          * 경력·활동·사업자·결과 증빙 업로드 URL 발급
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). data={id,storageKey,uploadUrl,method,requiredHeaders,headers,expiresAt}. uploadUrl로 PUT할 때 requiredHeaders(헤더명→문자열, /api/files/upload-url과 같은 형식)를 그대로 보내야 서명이 맞습니다. 파일 크기는 sizeBytes와 같아야 합니다. headers는 같은 내용의 배열 값 형식(이전 호환용)입니다. 허용 형식은 JPEG·PNG·WebP·MP4·WebM·MOV(video/quicktime), 파일당 최대 20MB입니다(HEIC·PDF는 받지 않음). 시도·신고 증빙은 이 API가 아니라 /api/files/upload-url을 씁니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). data={id,storageKey,uploadUrl,method,requiredHeaders,headers,expiresAt}. uploadUrl로 PUT할 때 requiredHeaders(헤더명→문자열, /api/files/upload-url과 같은 형식)를 그대로 보내야 서명이 맞습니다. 파일 크기는 sizeBytes와 같아야 합니다. headers는 같은 내용의 배열 값 형식(이전 호환용)입니다. 허용 형식은 모든 증빙 공통으로 JPEG·PNG·WebP·PDF·MP4·MOV(video/quicktime)·WebM, 파일당 최대 20MB입니다(HEIC는 받지 않음). 시도·신고 증빙은 이 API가 아니라 /api/files/upload-url을 씁니다.
          */
         post: operations["upload"];
         delete?: never;
@@ -1263,7 +1263,7 @@ export interface paths {
         put?: never;
         /**
          * 분쟁·이용자 무응답 결과 확정
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 24시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다. body={result,note(필수, 확정 사유),attemptUnverified}. attemptUnverified=true는 FAILURE에만 쓸 수 있고(아니면 400) 예매 시도를 확인하지 못한 종결입니다: 착수비를 도우미에게 지급하지 않고 이용자가 착수비·성공보수를 환불받습니다(이용료 비환불). 착수비 지급이 이미 요청·진행·완료됐으면 409입니다. reviewReason(DISPUTED|CONFIRMATION_OVERDUE, 선택)에 관리자가 목록에서 본 계기를 보내면, 그 사이 상태가 바뀐 경우(예: 무응답 건에 이용자가 이의 제기) 409입니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청, 또는 도우미 결과 제출 후 24시간이 지나도록 이용자가 답하지 않은 IN_PROGRESS 요청의 최종 결과를 정합니다. 관리자가 그 거래의 당사자면 403입니다. body={result,note(필수, 확정 사유),attemptUnverified}. attemptUnverified=true는 FAILURE에만 쓸 수 있고(아니면 400) 예매 시도를 확인하지 못한 종결입니다: 착수비를 도우미에게 지급하지 않고 이용자가 착수비·성공보수를 환불받습니다(이용료 비환불). 착수비가 도우미 몫으로 확정됐으면(지급 요청·진행·완료, 또는 현재 결제 이후 최신 시도 증빙 승인) 409입니다. reviewReason(DISPUTED|CONFIRMATION_OVERDUE, 선택)에 관리자가 목록에서 본 계기를 보내면, 그 사이 상태가 바뀐 경우(예: 무응답 건에 이용자가 이의 제기) 409입니다.
          */
         post: operations["resolve"];
         delete?: never;
@@ -1343,7 +1343,7 @@ export interface paths {
         put?: never;
         /**
          * 도우미 결과 미제출 요청 실패 종결
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 도우미가 결과를 내지 않은 IN_PROGRESS 요청을 FAILURE로 종결합니다. body={note(필수, 종결 사유)}. 이용자가 이 거래로 신고한 적이 있어야 하고(아니면 409), 관리자가 당사자면 403입니다. 착수비 지급이 시작되지 않았으면 착수비를 지급하지 않는 종결(upfrontForfeited=true)이 되어 이용자가 착수비·성공보수를 환불받고, 이미 시작됐으면 성공보수만 환불 대상입니다. 안전거래 이용료는 환불하지 않습니다. 환불은 이용자의 환불 요청 API로 진행합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 도우미가 결과를 내지 않은 IN_PROGRESS 요청을 FAILURE로 종결합니다. body={note(필수, 종결 사유)}. 이용자가 이 거래로 신고한 적이 있어야 하고(아니면 409), 관리자가 당사자면 403입니다. 착수비가 도우미 몫으로 확정되지 않았으면(지급 미시작, 승인된 시도 증빙 없음) 착수비를 지급하지 않는 종결(upfrontForfeited=true)이 되어 이용자가 착수비·성공보수를 환불받고, 확정됐으면 착수비는 도우미에게 지급하고 성공보수만 환불 대상입니다. 안전거래 이용료는 환불하지 않습니다. 환불은 이용자의 환불 요청 API로 진행합니다.
          */
         post: operations["closeNoResult"];
         delete?: never;
@@ -2257,7 +2257,7 @@ export interface paths {
         };
         /**
          * 결과 분쟁·이용자 무응답(24시간) 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),resultConfirmDueAt,agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비 지급이 이미 시작돼 attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400). 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),resultConfirmDueAt,agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비가 도우미 몫으로 확정돼(지급 시작 또는 현재 결제 이후 시도 증빙 승인) attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400). 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
          */
         get: operations["resultReview"];
         put?: never;
@@ -3645,7 +3645,7 @@ export interface components {
              */
             originalName: string;
             /**
-             * @description 프런트가 확인한 MIME. 저장 후 서버가 실제 객체와 재검증. 후기·프로필·회원 이미지: image/jpeg·png·webp·heic·heif. 착수·신고 증빙: 이미지 형식 + application/pdf, video/mp4, video/quicktime, video/webm
+             * @description 프런트가 확인한 MIME. 저장 후 서버가 실제 객체와 재검증. 후기·프로필·회원 이미지: image/jpeg·png·webp·heic·heif. 착수·신고 증빙: image/jpeg·png·webp, application/pdf, video/mp4, video/quicktime, video/webm(HEIC 제외, 모든 증빙 공통)
              * @example image/png
              */
             mimeType: string;

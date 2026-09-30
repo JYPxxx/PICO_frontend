@@ -7,10 +7,19 @@ import { MAX_FILE_BYTES, acceptOf, endedStages, fileKinds, mimeOf, stageNames, t
 
 // 프로토타입 transactions.js의 card()/notice()/badge()/next()/progress()/rows() 마크업
 
-/** 증빙 첨부 썸네일. 검토 완료(CLEAN) 첨부에만 서버가 열람 주소(url, 5분 유효)를 주므로 그때 사진을 보여 준다. */
+/**
+ * 증빙 첨부 썸네일. 서버가 열람 주소(url, 5분 유효)를 준 이미지 첨부면 사진을 보여 준다(차단·저장소 오류면 url이 없음).
+ * 브라우저가 그리지 못하는 이미지(예전에 올라온 HEIC 등)나 만료된 주소는 파일 아이콘으로 대신한다.
+ */
 export function EvidenceThumb({ files }: { files: Raw[] }) {
   const image = files.find((f) => str(f.url) && str(f.mimeType)?.startsWith('image/'));
-  return <div className="tx-file-thumb">{image ? <img src={str(image.url)} alt={str(image.originalName) ?? '증빙 이미지'} /> : <Icon name="file" size={24} />}</div>;
+  const src = image ? str(image.url) : undefined;
+  const [broken, setBroken] = useState<string | undefined>();
+  return (
+    <div className="tx-file-thumb">
+      {src && broken !== src ? <img src={src} alt={str(image?.originalName) ?? '증빙 이미지'} onError={() => setBroken(src)} /> : <Icon name="file" size={24} />}
+    </div>
+  );
 }
 
 /** 첨부 파일명 · 검토 상태. 열람 주소가 있으면 파일명을 누르면 받을 수 있다. */

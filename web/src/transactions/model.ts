@@ -432,27 +432,26 @@ async function uploadEvidenceFile(purpose: 'RESULT' | 'DISPUTE', file: File) {
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-// 업로드 목적별로 서버가 받는 형식이 다르다(백엔드 FileUploadService·EvidenceUploadService).
-//   시도·신고 증빙(/api/files): 이미지(JPEG·PNG·WebP·HEIC·HEIF) + PDF + 영상(MP4·MOV·WebM)
-//   결과·분쟁 소명·경력 증빙(/api/evidence-files): JPEG·PNG·WebP + 영상(MP4·MOV·WebM)
+// 모든 증빙(시도·신고·결과·분쟁 소명·경력)은 서버가 같은 형식을 받는다(백엔드 FileUploadService·EvidenceUploadService).
+//   JPEG·PNG·WebP + PDF + 영상(MP4·MOV·WebM). HEIC는 받지 않는다: 아이폰 브라우저는 HEIC를 허용하지 않는
+//   선택 창에서 사진을 JPEG로 바꿔 올리고, 다른 브라우저는 HEIC를 화면에 그리지 못한다.
 export type FileKind = 'attempt' | 'report' | 'result' | 'dispute' | 'career';
 const EXT_MIME: Record<string, string> = {
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp',
   pdf: 'application/pdf', mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
 };
-const PRIVATE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/webm'];
-const EVIDENCE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'];
-const PRIVATE_LABEL = 'JPG · PNG · WEBP · HEIC · PDF · MP4 · MOV · WEBM';
-const EVIDENCE_LABEL = 'JPG · PNG · WEBP · MP4 · MOV · WEBM';
+const EVIDENCE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/webm'];
+const EVIDENCE_LABEL = 'JPG · PNG · WEBP · PDF · MP4 · MOV · WEBM';
+const evidenceKind = { types: EVIDENCE_TYPES, label: EVIDENCE_LABEL, max: 10 };
 export const fileKinds: Record<FileKind, { types: string[]; label: string; max: number }> = {
-  attempt: { types: PRIVATE_TYPES, label: PRIVATE_LABEL, max: 10 },
-  report: { types: PRIVATE_TYPES, label: PRIVATE_LABEL, max: 10 },
-  result: { types: EVIDENCE_TYPES, label: EVIDENCE_LABEL, max: 10 },
-  dispute: { types: EVIDENCE_TYPES, label: EVIDENCE_LABEL, max: 10 },
-  career: { types: EVIDENCE_TYPES, label: EVIDENCE_LABEL, max: 10 },
+  attempt: evidenceKind,
+  report: evidenceKind,
+  result: evidenceKind,
+  dispute: evidenceKind,
+  career: evidenceKind,
 };
 
-/** 브라우저가 형식을 비워 두는 파일(일부 HEIC 등)은 확장자로 정한다. */
+/** 브라우저가 형식을 비워 두는 파일(일부 MOV 등)은 확장자로 정한다. */
 export function mimeOf(file: File) {
   if (file.type) return file.type;
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';

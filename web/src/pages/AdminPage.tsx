@@ -101,7 +101,7 @@ function Item({ title, rows, raw, children }: { title: ReactNode; rows: [string,
 }
 
 /** 사유(필수)를 받아 실행하는 모달 */
-function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { title: string; fields: { name: string; label: string; required?: boolean; type?: string; helper?: string; initial?: string }[]; submitText: string; danger?: boolean; onClose: () => void; onSubmit: (v: Record<string, string>) => Promise<unknown> }) {
+function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { title: string; fields: { name: string; label: string; required?: boolean; type?: string; helper?: string; initial?: string; maxLength?: number }[]; submitText: string; danger?: boolean; onClose: () => void; onSubmit: (v: Record<string, string>) => Promise<unknown> }) {
   const [values, setValues] = useState<Record<string, string>>(Object.fromEntries(fields.map((f) => [f.name, f.initial ?? ''])));
   const [pending, setPending] = useState(false);
   const missing = fields.some((f) => f.required && !values[f.name]?.trim());
@@ -120,7 +120,7 @@ function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { t
         {fields.map((f) => (
           <Field key={f.name} label={f.label} required={f.required} helper={f.helper}>
             {f.type === 'textarea' ? (
-              <textarea rows={3} required={f.required} value={values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} />
+              <textarea rows={3} required={f.required} maxLength={f.maxLength} value={values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} />
             ) : (
               <input type={f.type ?? 'text'} required={f.required} value={values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} />
             )}
@@ -541,8 +541,11 @@ function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAs
     run(async () => {
       await unwrap(api.POST('/api/admin/requests/{requestId}/dispute/questions', { params: { path: { requestId: id } }, body: { party: ask.party, body: ask.body.trim() } }));
       setAsk({ ...ask, body: '' });
-      await loadShown();
       onAsked?.();
+      // 요청은 이미 보냈다: 대화 기록만 못 불러오면 오류 대신 다시 불러오기를 안내한다(다시 보내면 알림이 중복된다).
+      await loadShown().catch(() =>
+        setFailed('추가 자료 요청은 보냈어요. 대화 기록만 다시 불러오지 못했어요. 다시 불러오기를 눌러 주세요(요청을 다시 보낼 필요는 없어요).'),
+      );
     }, '추가 자료를 요청했어요. 상대에게 알림이 가고 48시간 답변 기한이 붙어요.');
   if (failed)
     return (
@@ -580,7 +583,7 @@ function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAs
                     </strong>
                     <small>{s(e, 'description') || '설명 없음'}</small>
                     <small>
-                      <EvidenceFileNames files={files} status={(f) => (str(f.scanStatus) === 'BLOCKED' ? '차단됨' : '열람 가능')} />
+                      <EvidenceFileNames files={files} status={(f) => (str(f.scanStatus) === 'BLOCKED' ? '차단됨' : str(f.url) ? '열람 가능' : '열 수 없음(파일 없음)')} />
                     </small>
                   </div>
                 </div>
@@ -677,7 +680,7 @@ function ResultReviewList({ onPick, version }: { onPick: (requestId: number, upf
                   ['이의 사유', s(row, 'disputeNote')],
                   ['증빙', [pick(row, 'hasResultEvidence') === true && '결과 증빙 있음', pick(row, 'hasAttemptEvidence') === true && '시도 증빙 있음'].filter(Boolean).join(' · ') || '증빙 없음'],
                   ['소명', [`${n(row, 'statementCount') ?? 0}건`, pick(row, 'awaitingRequesterReply') === true && '이용자 답변 대기', pick(row, 'awaitingAgentReply') === true && '도우미 답변 대기'].filter(Boolean).join(' · ')],
-                  ['착수비', flag(row, 'upfrontPayoutStarted') ? '지급 진행·완료 (시도 미확인 종결 불가)' : '미지급'],
+                  ['착수비', flag(row, 'upfrontPayoutStarted') ? '도우미 몫으로 확정(시도 증빙 승인 또는 지급 진행) · 시도 미확인 종결 불가' : '미확정'],
                 ]}
               >
                 <button type="button" className="btn secondary" onClick={() => setShown({ id, disputed: !overdue })}>
@@ -730,7 +733,7 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
                   ['착수 시각', utcToLocal(s(row, 'startedAt'))],
                   ['신고', `#${n(row, 'reportId') ?? ''} · ${utcToLocal(s(row, 'reportedAt'))}`],
                   ['시도 증빙', pick(row, 'hasAttemptEvidence') === true ? '있음' : '없음'],
-                  ['종결 시 환불', started ? '착수비가 이미 지급돼 성공보수만 환불 대상(이용료 제외)' : '착수비·성공보수 환불 대상, 착수비 미지급(이용료 제외)'],
+                  ['종결 시 환불', started ? '착수비는 도우미 몫(시도 증빙 승인 또는 지급 진행)이라 지급하고, 성공보수만 환불 대상(이용료 제외)' : '착수비·성공보수 환불 대상, 착수비 미지급(이용료 제외)'],
                 ]}
               >
                 <button type="button" className="btn secondary" onClick={() => setShown(id)}>
@@ -742,7 +745,7 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
                   onClick={() =>
                     open({
                       title: `요청 #${id} 결과 미제출로 종결`,
-                      fields: [{ name: 'note', label: '종결 사유', required: true, type: 'textarea', helper: '양쪽 요청 상세에 표시돼요. 예: 도우미가 3일간 연락되지 않고 결과를 등록하지 않음' }],
+                      fields: [{ name: 'note', label: '종결 사유', required: true, type: 'textarea', maxLength: 10000, helper: '양쪽 요청 상세에 표시돼요. 예: 도우미가 3일간 연락되지 않고 결과를 등록하지 않음' }],
                       submitText: '실패로 종결',
                       danger: true,
                       action: async (v) => {
@@ -756,7 +759,7 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
                           throw err;
                         }
                       },
-                      success: started ? '실패로 종결했어요. 이용자는 성공보수를 환불받을 수 있어요(이용료 제외).' : '실패로 종결했어요. 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).',
+                      success: started ? '실패로 종결했어요. 착수비는 도우미에게 지급되고 이용자는 성공보수를 환불받을 수 있어요(이용료 제외).' : '실패로 종결했어요. 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).',
                     })
                   }
                 >
@@ -807,10 +810,23 @@ function RequestsTab() {
       } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
           setVersion((v) => v + 1); // 목록을 최신 상태로
+          // 409 원인은 여러 가지라(상태 변경·이미 확정·착수비 확정) 짐작하지 않고 최신 목록에서 그 요청을 확인해 알려 준다.
+          const rows = await unwrap<Raw[]>(api.GET('/api/admin/requests/result-review', { params: { query: { page: 0, size: 100 } } })).catch(() => null);
+          const row = rows?.find((x) => n(x, 'id') === Number(requestId));
+          if (row) {
+            setUpfrontStarted(flag(row, 'upfrontPayoutStarted'));
+            setReviewReason(s(row, 'reviewReason'));
+          }
           throw new Error(
-            unverified
-              ? '착수비 지급이 이미 진행돼 시도 미확인으로 종결할 수 없어요. 다른 결과로 확정해 주세요.'
-              : '이미 확정됐거나 목록을 본 뒤 상태가 바뀐 요청이에요(이용자가 먼저 동의하거나 이의를 제기했을 수 있어요). 목록을 새로 고쳤으니 다시 확인해 주세요.',
+            !rows
+              ? '확정하지 못했어요. 목록을 새로 고친 뒤 요청 상태를 확인해 주세요.'
+              : !row
+                ? '이미 확정됐거나 지금은 확정할 수 없는 요청이에요(이용자가 먼저 결과에 동의했을 수 있어요).'
+                : reviewReason && s(row, 'reviewReason') !== reviewReason
+                  ? `목록을 본 뒤 상태가 바뀌었어요(지금: ${reviewReasonNames[s(row, 'reviewReason')] ?? s(row, 'reviewReason')}). 이의 사유와 증빙을 다시 확인하고 확정해 주세요.`
+                  : unverified && flag(row, 'upfrontPayoutStarted')
+                    ? '착수비가 도우미 몫으로 확정돼(시도 증빙 승인 또는 지급 시작) 시도 미확인으로 종결할 수 없어요. 다른 결과로 확정해 주세요.'
+                    : '지금은 확정할 수 없는 요청이에요. 목록을 새로 고쳤으니 다시 확인해 주세요.',
           );
         }
         if (err instanceof ApiError && err.status === 403) throw new Error('본인이 당사자인 거래는 확정할 수 없어요.');
@@ -866,17 +882,17 @@ function RequestsTab() {
                 <option value="PARTIAL">부분 성공</option>
                 <option value="FAILURE">실패 (착수비는 도우미 몫)</option>
                 <option value="UNVERIFIED" disabled={upfrontStarted === true}>
-                  실패 · 시도 미확인 (착수비 미지급){upfrontStarted ? ' - 착수비 지급됨' : ''}
+                  실패 · 시도 미확인 (착수비 미지급){upfrontStarted ? ' - 착수비 확정됨' : ''}
                 </option>
               </select>
             </Field>
           </div>
-          {upfrontStarted && <p className="record-note">이 요청은 착수비 지급이 이미 진행됐거나 끝나서 시도 미확인 종결을 고를 수 없어요.</p>}
+          {upfrontStarted && <p className="record-note">이 요청은 착수비가 이미 도우미 몫으로 확정돼(시도 증빙 승인 또는 지급 시작) 시도 미확인 종결을 고를 수 없어요.</p>}
           {result === 'UNVERIFIED' && (
-            <Notice tone="error">시도 증빙이 미흡하거나 예매를 시도하지 않은 것으로 판단될 때 써요. 착수비를 도우미에게 지급하지 않고, 이용자는 착수비·성공보수를 환불받아요(이용료 제외). 착수비가 이미 지급됐으면 확정할 수 없어요.</Notice>
+            <Notice tone="error">시도 증빙이 미흡하거나 예매를 시도하지 않은 것으로 판단될 때 써요. 착수비를 도우미에게 지급하지 않고, 이용자는 착수비·성공보수를 환불받아요(이용료 제외). 시도 증빙이 승인됐거나 착수비 지급이 시작된 거래는 확정할 수 없어요.</Notice>
           )}
           <Field label="확정 사유" required>
-            <textarea rows={3} required value={note} onChange={(e) => setNote(e.target.value)} />
+            <textarea rows={3} required maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} />
           </Field>
           {Number(requestId) > 0 && (
             <p className="record-note">
