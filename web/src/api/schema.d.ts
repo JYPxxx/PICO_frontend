@@ -577,13 +577,13 @@ export interface paths {
         };
         /**
          * 내 분쟁 소명·운영팀 질문
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문할 수 없습니다(403).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문도 조회도 할 수 없습니다(403).
          */
         get: operations["thread"];
         put?: never;
         /**
          * 분쟁 소명 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문할 수 없습니다(403).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문도 조회도 할 수 없습니다(403).
          */
         post: operations["submit_1"];
         delete?: never;
@@ -1323,9 +1323,29 @@ export interface paths {
         put?: never;
         /**
          * 분쟁 당사자에게 추가 자료 요청
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문할 수 없습니다(403).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문도 조회도 할 수 없습니다(403).
          */
         post: operations["disputeQuestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/{requestId}/close-no-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 도우미 결과 미제출 요청 실패 종결
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 도우미가 결과를 내지 않은 IN_PROGRESS 요청을 FAILURE로 종결합니다. body={note(필수, 종결 사유)}. 이용자가 이 거래로 신고한 적이 있어야 하고(아니면 409), 관리자가 당사자면 403입니다. 착수비 지급이 시작되지 않았으면 착수비를 지급하지 않는 종결(upfrontForfeited=true)이 되어 이용자가 착수비·성공보수를 환불받고, 이미 시작됐으면 성공보수만 환불 대상입니다. 안전거래 이용료는 환불하지 않습니다. 환불은 이용자의 환불 요청 API로 진행합니다.
+         */
+        post: operations["closeNoResult"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2197,7 +2217,7 @@ export interface paths {
         };
         /**
          * 분쟁 소명 양쪽 대화(관리자)
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문할 수 없습니다(403).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. DISPUTED 요청의 분쟁 소명입니다. 당사자는 자기 대화(운영팀 질문 QUESTION과 자기 소명 STATEMENT)만 보고, 상대방 소명은 볼 수 없습니다. 소명은 body(최대 5000자)와 storageKeys(최대 10개, /api/evidence-files/upload-url purpose=DISPUTE로 발급)입니다. 관리자 질문은 party=REQUESTER|AGENT에게 보내며 48시간 답변 기한(replyDueAt)과 알림이 붙습니다. 기한은 안내용이며 관리자는 언제든 확정할 수 있습니다. 관리자는 그 거래의 당사자면 질문도 조회도 할 수 없습니다(403).
          */
         get: operations["disputeMessages"];
         put?: never;
@@ -2237,7 +2257,7 @@ export interface paths {
         };
         /**
          * 결과 분쟁·이용자 무응답(24시간) 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,...}] 오래된 순. 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비 지급이 이미 시작돼 attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
          */
         get: operations["resultReview"];
         put?: never;
@@ -2257,7 +2277,7 @@ export interface paths {
         };
         /**
          * 운영팀이 확정한 결과 이력
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. COMPLETED 중 관리자가 확정한 요청(최신 순). data=[{id,submittedTargetName,agentResult,requesterResult,finalResult,upfrontForfeited,resolutionNote,resolvedByUserId,resolvedByName,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),disputeNote,agentResultSubmittedAt,completedAt,...}].
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. COMPLETED 중 관리자가 확정한 요청(최신 순). data=[{id,submittedTargetName,agentResult,requesterResult,finalResult,upfrontForfeited,resolutionNote,resolvedByUserId,resolvedByName,reviewReason(DISPUTED|CONFIRMATION_OVERDUE|NO_RESULT),disputeNote,agentResultSubmittedAt,completedAt,...}]. 호출한 관리자가 당사자인 거래는 빠집니다.
          */
         get: operations["resolved"];
         put?: never;
@@ -2280,6 +2300,26 @@ export interface paths {
          * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다.
          */
         get: operations["pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/requests/no-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 도우미 결과 미제출 신고 목록
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 착수(IN_PROGRESS) 후 도우미가 결과를 내지 않았고 이용자가 그 거래로 신고(OPEN·INVESTIGATING)한 요청, 신고가 오래된 순. data=[{id,submittedTargetName,startedAt,reportId,reportedAt,hasAttemptEvidence,upfrontPayoutStarted,...}]. 호출한 관리자가 당사자인 거래는 빠집니다.
+         */
+        get: operations["noResult"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3605,7 +3645,7 @@ export interface components {
              */
             originalName: string;
             /**
-             * @description 프런트가 확인한 MIME. 저장 후 서버가 실제 객체와 재검증
+             * @description 프런트가 확인한 MIME. 저장 후 서버가 실제 객체와 재검증. 후기·프로필·회원 이미지: image/jpeg·png·webp·heic·heif. 착수·신고 증빙: 이미지 형식 + application/pdf, video/mp4, video/quicktime, video/webm
              * @example image/png
              */
             mimeType: string;
@@ -3741,6 +3781,9 @@ export interface components {
         DisputeQuestion: {
             party: string;
             body: string;
+        };
+        CloseNoResult: {
+            note: string;
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseInteger: {
@@ -10565,6 +10608,86 @@ export interface operations {
             };
         };
     };
+    closeNoResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                requestId: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseNoResult"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
     expire: {
         parameters: {
             query?: never;
@@ -14185,6 +14308,83 @@ export interface operations {
         };
     };
     pending: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListMapStringObject"];
+                };
+            };
+            /** @description 입력 형식·범위 오류 */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 인증 필요 (Bearer JWT) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 접근 권한이 없습니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 현재 상태·동의·정책·중복 조건 충돌 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 서버 오류가 발생했습니다. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+            /** @description 필수 암호키, 메일·파일 저장소 설정 또는 연동 서비스가 없어 이 기능을 수행할 수 없음. 응답이 503이면 처리 성공으로 간주하지 마세요. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiResponseError"];
+                };
+            };
+        };
+    };
+    noResult: {
         parameters: {
             query?: {
                 page?: number;
