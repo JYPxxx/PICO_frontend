@@ -1,4 +1,5 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
+import { ApiError } from '../api/client';
 import { str, type Raw } from '../api/pick';
 import { Icon } from '../ui/Icon';
 import { money } from '../ui/format';
@@ -89,7 +90,7 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   in_progress: ['도우미가 예매 결과를 등록할 차례예요', '도우미가 올린 시도 증빙을 확인하며 결과를 기다려 주세요.', '시도 증빙을 올리고, 예매가 끝나면 결과 증빙을 올려 주세요. 운영팀 파일 검토 후 결과를 제출할 수 있어요.'],
   result_submitted: ['이용자가 예매 결과를 확인할 차례예요', '확정 조건과 등록된 결과를 함께 확인해 주세요.', '이용자가 결과를 확인하고 있어요.'],
   disputed: ['양쪽 결과가 달라 운영팀이 확인하고 있어요', '운영팀이 증빙을 검토해 결과를 확정해요.'],
-  completed: ['결과 확인을 마쳤어요', '정산·환불은 증빙 검토와 합의 조건에 따라 처리돼요.'],
+  completed: ['결과 확인을 마쳤어요', '안전거래라면 정산·환불은 확정된 결과와 합의 조건에 따라 처리돼요. 직접 거래는 당사자끼리 정산해요.'],
   cancelled: ['이 요청은 취소되었어요', '새 요청은 도우미 프로필에서 보낼 수 있어요.'],
   rejected: ['도우미가 요청을 거절했어요', '다른 도우미를 찾아 요청해 보세요.'],
   expired: ['응답 기한이 지난 요청이에요', '도우미 프로필에서 새 요청을 보낼 수 있어요.'],
@@ -120,11 +121,13 @@ const steps: [string, Stage[]][] = [
   ['이용자 결과 확인', ['result_submitted', 'disputed']],
 ];
 
-export function Progress({ stage }: { stage: Stage }) {
-  const active = steps.findIndex(([, s]) => s.includes(stage));
+/** direct: 직접 거래 조건이면 플랫폼 결제가 없어 '안전거래 결제' 단계를 뺀다. */
+export function Progress({ stage, direct = false }: { stage: Stage; direct?: boolean }) {
+  const shown = direct ? steps.filter(([, s]) => !s.includes('payment')) : steps;
+  const active = shown.findIndex(([, s]) => s.includes(stage));
   return (
     <ol aria-label="거래 진행 상황">
-      {steps.map(([label], i) => {
+      {shown.map(([label], i) => {
         const done = stage === 'completed' || (active >= 0 && i < active);
         const current = i === active;
         return (
@@ -263,8 +266,12 @@ export function MoneyInput({ value, onChange, ...rest }: { value: number | undef
   );
 }
 
-/** 버튼 한 번에 API를 부르고, 실패하면 서버 메시지를 토스트로 보여 준다. */
-export function useAction() {
+/**
+ * 버튼 한 번에 API를 부르고, 실패하면 서버 메시지를 토스트로 보여 준다.
+ * onConflict: 409(상대방 진행·기한 경과 등으로 상태가 이미 바뀜)일 때 부른다. 원인은 짐작하지 않고
+ * 서버 메시지를 그대로 보여 주며, 호출한 화면은 여기서 최신 상태를 다시 불러온다.
+ */
+export function useAction({ onConflict }: { onConflict?: () => void } = {}) {
   const toast = useToast();
   const [pending, setPending] = useState(false);
   async function run(action: () => Promise<unknown>, success?: string) {
@@ -275,7 +282,9 @@ export function useAction() {
       if (success) toast(success);
       return true;
     } catch (e) {
-      toast(e instanceof Error ? e.message : '요청을 처리하지 못했어요.');
+      const conflict = !!onConflict && e instanceof ApiError && e.status === 409;
+      if (conflict) onConflict();
+      toast(e instanceof Error ? (conflict ? `${e.message} 최신 상태로 다시 불러왔어요.` : e.message) : '요청을 처리하지 못했어요.');
       return false;
     } finally {
       setPending(false);

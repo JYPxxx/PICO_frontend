@@ -84,7 +84,7 @@ export function ReportPage() {
             </select>
           </Field>
           <Field label="신고 내용" required helper="언제, 어떤 일이 있었는지 구체적으로 적어 주세요.">
-            <textarea rows={6} required value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea rows={6} required maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} />
           </Field>
           <Field label="증빙 파일" helper="대화 캡처, 입금 내역 등. 신고 내역에서 나중에 추가할 수도 있어요.">
             <FilePicker kind="report" files={files} onChange={setFiles} />

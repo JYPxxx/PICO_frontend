@@ -46,11 +46,17 @@ function RefundAccount({ value, onChange }: { value: { bank: string; number: str
 const emptyAccount = { bank: '004', number: '', holder: '' };
 
 export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxRequest; a: Agreement; partial: Raw | null; agent: boolean; reload: () => void }) {
-  const { pending, run } = useAction();
   const [amount, setAmount] = useState(0);
   const [amountMissing, setAmountMissing] = useState(false);
   const [note, setNote] = useState('');
   const [dialog, setDialog] = useState<'' | 'propose' | 'accept' | 'reject'>('');
+  // 409(상대방이 먼저 처리·기한 경과 등): 서버 메시지를 보여 주고 최신 상세로 다시 불러온다.
+  const { pending, run } = useAction({
+    onConflict: () => {
+      setDialog('');
+      reload();
+    },
+  });
   const [account, setAccount] = useState(emptyAccount);
   const [rejectNote, setRejectNote] = useState('');
   const path = { params: { path: { requestId: r.id } } };
@@ -88,7 +94,8 @@ export function PartialSettlementCard({ r, a, partial, agent, reload }: { r: TxR
   return (
     <TxCard title="부분 성공 정산">
       <p className="prose">
-        결과가 부분 성공이라 성공보수 {won(a.successFeeKrw)} 중 도우미 몫을 정해요. 나머지는 이용자에게 환불돼요. 착수비는 시도 증빙 승인 기준으로 도우미 몫이에요.
+        결과가 부분 성공이라 성공보수 {won(a.successFeeKrw)} 중 도우미 몫을 정해요. 나머지는 이용자에게 환불돼요.
+        {a.upfrontFeeKrw > 0 && ` 착수비 ${won(a.upfrontFeeKrw)}은 결과가 확정돼 도우미 몫이고, 이 정산에 포함되지 않아요.`}
       </p>
       {!partial || status === 'NOT_PROPOSED' ? (
         agent ? (
@@ -235,8 +242,13 @@ export function refundCase(r: TxRequest, final: RequestResult | undefined, parti
 }
 
 export function RefundCard({ paymentId, refunds, can, reload }: { paymentId: number; refunds: Raw[]; can: { label: string; text: string } | null; reload: () => void }) {
-  const { pending, run } = useAction();
   const [open, setOpen] = useState(false);
+  const { pending, run } = useAction({
+    onConflict: () => {
+      setOpen(false);
+      reload();
+    },
+  });
   const [reason, setReason] = useState('');
   const [account, setAccount] = useState(emptyAccount);
   const active = refunds.some((x) => ['REQUESTED', 'PROCESSING'].includes(str(x.status) ?? ''));

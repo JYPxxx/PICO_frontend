@@ -295,7 +295,7 @@ export function ProfilePage() {
           </div>
           <p className="aside-disclaimer">
             요청 → 도우미 수락 및 최종 조건 전달
-            <br />→ 이용자 확인·확정 → 안전거래 결제
+            <br />→ 이용자 확인·확정 → 안전거래 조건이면 결제
           </p>
         </aside>
       </div>

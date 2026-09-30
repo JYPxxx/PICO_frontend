@@ -65,6 +65,8 @@ export interface TxRequest {
   paymentStatus: string;
   /** 이용자가 최신 조건(확정본 포함)에 변경을 요청했고 도우미가 새 조건을 아직 보내지 않음. 이 동안 착수는 409 */
   agreementChangePending: boolean;
+  /** 후기를 이미 썼음(삭제·숨김 포함). 숨겨진 후기는 조회가 404라 이 값으로 다시 쓰기를 막는다. */
+  reviewWritten: boolean;
   raw: Raw;
 }
 
@@ -117,6 +119,7 @@ export function toRequest(raw: Raw): TxRequest {
     paymentId: n('paymentId', 'payment.paymentId', 'safePayment.paymentId'),
     paymentStatus: s('paymentStatus', 'payment.status', 'safePayment.status'),
     agreementChangePending: pick(raw, 'agreementChangePending') === true || num(pick(raw, 'agreementChangePending')) === 1,
+    reviewWritten: pick(raw, 'reviewWritten') === true || num(pick(raw, 'reviewWritten')) === 1,
     raw,
   };
 }
@@ -291,6 +294,13 @@ export function roleIn(r: TxRequest, me: Raw | null, mode: Role): Role {
 
 // ── 결과 ───────────────────────────────────────────────────
 export const resultNames: Record<RequestResult, string> = { SUCCESS: '성공', PARTIAL: '부분 성공', FAILURE: '실패' };
+
+/**
+ * 이 탭에서 후기를 이미 쓴 것으로 확인된 요청(삭제했거나, 작성이 409로 거절됨).
+ * 서버는 거래당 후기 1개이고 삭제·숨김 후 재작성을 409로 막는데, 요청 상세 응답에 후기 상태가 없어
+ * 후기 조회 404만으로는 '아직 안 씀'과 구별되지 않는다. 후기 작성은 그 요청의 이용자만 할 수 있어 계정이 바뀌어도 섞이지 않는다.
+ */
+export const usedReviews = new Set<number>();
 
 // ── API 호출 ────────────────────────────────────────────────
 const path = (requestId: number) => ({ params: { path: { requestId } } });

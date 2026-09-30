@@ -132,7 +132,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
       {!isResult && (
         <Notice>
           실패로 결과를 등록하려면 시도 증빙이 반드시 필요해요.
-          {upfrontApplies && ' 안전거래라서 이용자가 승인하면 착수비를 결과 전에 먼저 받아요. 운영팀이 예매 시도를 확인하지 못해 종결하면 착수비는 지급되지 않아요.'}
+          {upfrontApplies && ' 안전거래라서 이용자가 승인하면 결과 전이라도 착수비 지급을 요청해요(정산 계좌 등록 필요). 운영팀이 예매 시도를 확인하지 못해 종결하면 착수비는 지급되지 않아요.'}
         </Notice>
       )}
     </aside>

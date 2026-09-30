@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
-import { setTokens } from '../api/tokens';
+import { getTokens, setTokens } from '../api/tokens';
 import { banks, fetchAgentState, verifyIdentity, verifyPayout } from '../agent/profile';
 import { useAppState, type Mode } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
@@ -57,7 +57,7 @@ export function MyPage() {
   const { me, logout } = useAuth();
   const [{ mode }, setState] = useAppState();
   const agent = mode === 'agent';
-  const avatar = useAvatar(me?.userId);
+  const avatar = useAvatar(me?.id);
   const name = str(me?.nickname) ?? '회원';
   const [load] = useLoad(async () => {
     const [agentState, counts, balance] = await Promise.all([
@@ -244,7 +244,7 @@ export function UserProfilePage() {
                   {avatar ? '이미지 변경' : '이미지 선택'}
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       e.target.value = '';
@@ -253,7 +253,7 @@ export function UserProfilePage() {
                   />
                 </label>
               </div>
-              <small>JPG · PNG · WEBP / 최대 3MB</small>
+              <small>JPG · PNG / 최대 3MB</small>
             </div>
           </div>
           <Field label="닉네임" required helper="요청과 후기에서 사용하는 이름이에요. 최대 50자">
@@ -276,7 +276,7 @@ export function UserProfilePage() {
               <div key={String(pick(c, 'contactId', 'id') ?? c.kind)}>
                 <dt>
                   {kindNames[str(c.kind) ?? ''] ?? str(c.kind)}
-                  {c.primary === true && <small> · 공개용</small>}
+                  {c.isPrimary === true && <small> · 공개용</small>}
                 </dt>
                 <dd>
                   {str(c.value)}{' '}
@@ -342,7 +342,8 @@ export function AccountPage() {
   const [withdrawPassword, setWithdrawPassword] = useState('');
   const state = load.status === 'done' ? load.data : null;
   const applicationStatus = state?.latest?.status ?? 'none';
-  const emailVerified = pick(me, 'emailVerified', 'emailVerifiedAt') ? true : pick(me, 'emailVerified') === false ? false : null;
+  // GET /api/me의 loginVerifiedAt: 로그인 이메일 인증 시각(미인증이면 null). 응답에 키가 없으면(불러오기 전 등) 표시하지 않는다.
+  const emailVerified = me && 'loginVerifiedAt' in me ? !!pick(me, 'loginVerifiedAt') : null;
 
   // 명세: 비밀번호·이메일 변경, 탈퇴는 모든 세션을 폐기한다. 로그인 정보를 지우고 로그인 화면으로 보낸다.
   function signOut(message: string, to = '/login') {
@@ -523,9 +524,11 @@ function confirmEmail(token: string) {
   if (!confirming.has(token))
     confirming.set(
       token,
-      unwrap(api.POST('/api/auth/email-verification/confirm', { body: { token } })).then(() => {
-        // 명세: 이메일 변경 확정 시 기존 로그인 세션을 폐기한다.
-        setTokens(null);
+      unwrap(api.POST('/api/auth/email-verification/confirm', { body: { token } })).then(async () => {
+        // 이메일 변경 확정이면 서버가 모든 세션을 폐기하고, 가입 인증이면 세션을 그대로 둔다.
+        // 링크만으로는 둘을 구별할 수 없어 내 정보를 다시 불러 본다. 세션이 끊겼으면 토큰 갱신이 실패하며 로그인 정보가 지워진다.
+        if (!getTokens()) return;
+        await api.GET('/api/me').catch(() => undefined);
       }),
     );
   return confirming.get(token)!;
@@ -591,10 +594,18 @@ function VerifyEmailResult({ token }: { token: string }) {
               <Icon name="check" size={32} />
             </div>
             <h1>이메일 인증을 마쳤어요</h1>
-            <p className="prose">이메일을 바꾼 경우에는 새 이메일로 다시 로그인해 주세요.</p>
-            <button type="button" className="btn primary full" onClick={() => navigate('/login', { replace: true })}>
-              로그인하기
-            </button>
+            {getTokens() ? (
+              <button type="button" className="btn primary full" onClick={() => navigate('/my', { replace: true })}>
+                마이페이지로
+              </button>
+            ) : (
+              <>
+                <p className="prose">이메일을 바꾼 경우에는 새 이메일로 다시 로그인해 주세요.</p>
+                <button type="button" className="btn primary full" onClick={() => navigate('/login', { replace: true })}>
+                  로그인하기
+                </button>
+              </>
+            )}
           </>
         )}
       </section>
@@ -689,7 +700,7 @@ export function HistoryPage() {
         ) : (
           <div className="empty">
             <h2>아직 내역이 없어요</h2>
-            <p>{tab === 'payouts' ? '착수비는 시도 증빙 승인 후, 수고비는 결과 확인 후 정산돼요.' : '매칭권을 충전하거나 요청을 수락하면 이곳에 기록돼요.'}</p>
+            <p>{tab === 'payouts' ? '안전거래만 정산돼요. 착수비는 착수 후 시도 증빙이 승인되거나 결과가 확정되면, 수고비는 성공(부분 성공이면 정산에 합의한 금액)으로 확정되면 정산 계좌로 지급을 요청해요.' : '매칭권을 충전하거나 요청을 수락하면 이곳에 기록돼요.'}</p>
             {tab === 'purchases' && (
               <button type="button" className="btn primary" onClick={() => navigate('/credits')}>
                 매칭권 충전

@@ -122,7 +122,7 @@ function NoteModal({ title, fields, submitText, danger, onClose, onSubmit }: { t
             {f.type === 'textarea' ? (
               <textarea rows={3} required={f.required} maxLength={f.maxLength} value={values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} />
             ) : (
-              <input type={f.type ?? 'text'} required={f.required} value={values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} />
+              <input type={f.type ?? 'text'} required={f.required} maxLength={f.maxLength} value={values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.value })} />
             )}
           </Field>
         ))}
@@ -163,7 +163,8 @@ function useDialog(reload: () => void) {
   return { open: setDialog, modal, pending, run };
 }
 
-const noteField = (label = '검토 메모') => ({ name: 'note', label, required: true, type: 'textarea' });
+/** 필수 메모 입력. maxLength는 해당 API의 서버 검증(@Size max)과 같게 넘긴다(넘기면 입력을 마친 뒤 400). */
+const noteField = (label: string, maxLength: number) => ({ name: 'note', label, required: true, type: 'textarea', maxLength });
 
 // ── 요청 정책 검토 ─────────────────────────────────────────
 function PolicyTab() {
@@ -172,7 +173,7 @@ function PolicyTab() {
   const decide = (row: Raw, allowed: boolean) =>
     open({
       title: allowed ? '대리 신청 허용' : '대리 신청 차단',
-      fields: [noteField(allowed ? '허용 근거' : '차단 사유'), { name: 'sourceUrl', label: '근거 URL', required: true, type: 'url', helper: '예매처 이용약관·공지 등 판단 근거 주소(https://…)', initial: s(row, 'officialApplicationUrl', 'platform.homepageUrl', 'platformHomepageUrl') }],
+      fields: [noteField(allowed ? '허용 근거' : '차단 사유', 10000), { name: 'sourceUrl', label: '근거 URL', required: true, type: 'url', maxLength: 1000, helper: '예매처 이용약관·공지 등 판단 근거 주소(https://…)', initial: s(row, 'officialApplicationUrl', 'platform.homepageUrl', 'platformHomepageUrl') }],
       submitText: allowed ? '허용' : '차단',
       danger: !allowed,
       success: allowed ? '허용했어요. 도우미가 수락할 수 있어요.' : '차단했어요.',
@@ -211,7 +212,8 @@ function PolicyTab() {
   );
 }
 
-// ── 증빙 파일 검토(CAREER·ACTIVITY·BUSINESS·RESULT) ─────────────
+// ── 증빙 파일 검토(도우미 심사용 CAREER·ACTIVITY·BUSINESS) ─────────────
+// 서버 목록은 결과 증빙(RESULT)·분쟁 소명(DISPUTE)을 빼고 주며, 두 파일은 승인·차단해도 409다(EvidenceUploadService.review).
 function FilesTab() {
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/evidence-files', { params: { query: { size: 100 } } })));
   const { open, modal, pending, run } = useDialog(reload);
@@ -226,7 +228,7 @@ function FilesTab() {
   const review = (row: Raw, approved: boolean) =>
     open({
       title: approved ? '파일 승인(CLEAN)' : '파일 차단(BLOCKED)',
-      fields: [noteField()],
+      fields: [noteField('검토 메모', 2000)],
       submitText: approved ? '승인' : '차단',
       danger: !approved,
       success: approved ? '승인했어요.' : '차단했어요.',
@@ -234,7 +236,7 @@ function FilesTab() {
     });
   return (
     <>
-      <ListBlock title="검토 대기 증빙 파일" desc="경력·활동·사업자(도우미 심사)와 결과 증빙 파일이에요. 승인(CLEAN)되어야 심사 신청·결과 제출에 쓸 수 있어요. 승인은 악성코드 검사를 뜻하지 않아요." load={load} reload={reload} empty="검토할 파일이 없어요.">
+      <ListBlock title="검토 대기 증빙 파일" desc="도우미 심사용 경력·활동·사업자 증빙 파일이에요. 경력 증빙은 승인(CLEAN)돼야 도우미가 심사를 신청하고 관리자가 승인할 수 있어요. 결과 증빙과 분쟁 소명 파일은 이 탭의 검토 대상이 아니에요(승인·차단할 수 없어요). 결과 증빙은 이용자가 바로 확인하고, 이의가 생기면 '결과 확인·만료' 탭의 '증빙·소명 보기'로 함께 봐요. 승인은 악성코드 검사를 뜻하지 않아요." load={load} reload={reload} empty="검토할 파일이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item
@@ -278,7 +280,7 @@ function ProfilesTab() {
   const review = (row: Raw, approved: boolean) =>
     open({
       title: approved ? '프로필 승인(게시)' : '프로필 반려',
-      fields: [noteField(approved ? '승인 메모' : '반려 사유(도우미에게 보여요)')],
+      fields: [noteField(approved ? '승인 메모' : '반려 사유(도우미에게 보여요)', 2000)],
       submitText: approved ? '승인' : '반려',
       danger: !approved,
       success: approved ? '승인했어요. 이전 게시본은 보관돼요.' : '반려했어요.',
@@ -286,7 +288,7 @@ function ProfilesTab() {
     });
   return (
     <>
-      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 3건(CLEAN)을 다시 확인해요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
+      <ListBlock title="심사 대기 프로필" desc="승인하면 도우미 찾기에 게시돼요. 서버가 본인·정산계좌 인증과 경력 증빙 3건(CLEAN)을 다시 확인해요. 경력 자료는 '증빙 보기'로 확인해 주세요." load={load} reload={reload} empty="심사할 프로필이 없어요.">
         {(rows) =>
           rows.map((row) => (
             <Item
@@ -294,12 +296,18 @@ function ProfilesTab() {
               raw={row}
               title={`${s(row, 'activityName')} · 프로필 #${profileId(row)}`}
               rows={[
-                ['회원', n(row, 'userId', 'agentUserId')],
+                // GET /api/admin/agent-profiles: 비용·연락 가능 시간·경력·platforms[{platformId,name}]·categories 포함
+                ['회원', n(row, 'userId')],
+                ['버전', n(row, 'version') ? `${n(row, 'version')}차` : ''],
                 ['한 줄 소개', s(row, 'headline')],
-                ['분야', (pick(row, 'categories') as string[] | undefined)?.map((c) => categoryNames[c] ?? c).join(' · ') ?? categoryNames[s(row, 'primaryCategory')]],
-                ['예매처', list(pick(row, 'platforms')).map((p) => s(p, 'name')).join(' · ')],
-                ['비용', `착수비 ${won(n(row, 'upfrontFeeKrw'))} · 수고비 ${won(n(row, 'successFeeMin'))} ~ ${won(n(row, 'successFeeMax'))}`],
-                ['경력', s(row, 'careerDescription')],
+                ['대표 분야', categoryNames[s(row, 'primaryCategory')] ?? s(row, 'primaryCategory')],
+                ['활동 분야', list(pick(row, 'categories')).map((c) => categoryNames[String(c)] ?? String(c)).join(', ')],
+                ['예매처', list(pick(row, 'platforms')).map((p) => str(pick(p, 'name')) ?? `#${num(pick(p, 'platformId')) ?? ''}`).join(', ')],
+                ['착수비', n(row, 'upfrontFeeKrw') != null ? won(n(row, 'upfrontFeeKrw')) : ''],
+                ['성공보수 범위', n(row, 'successFeeMin') != null ? `${won(n(row, 'successFeeMin'))} ~ ${won(n(row, 'successFeeMax'))}` : ''],
+                ['연락 가능 시간', s(row, 'contactHoursNote')],
+                ['경력', [s(row, 'careerStartedOn') && `${s(row, 'careerStartedOn')}부터`, s(row, 'careerDescription')].filter(Boolean).join(' · ')],
+                ['소개', s(row, 'bio')],
                 ['신청 시각', utcToLocal(s(row, 'submittedAt'))],
               ]}
             >
@@ -385,7 +393,7 @@ function AttemptsTab() {
                 onClick={() =>
                   open({
                     title: '시도 증빙 대리 승인',
-                    fields: [{ name: 'note', label: '승인 메모', type: 'textarea' }],
+                    fields: [{ name: 'note', label: '승인 메모', type: 'textarea', maxLength: 16000 }],
                     submitText: '승인',
                     success: '대리 승인했어요.',
                     action: (v) => unwrap(api.POST('/api/admin/attempt-evidences/{evidenceId}/approve', { params: { path: { evidenceId: n(row, 'evidenceId')! } }, body: { reviewNote: v.note || null } })),
@@ -477,7 +485,7 @@ function SettlementsTab() {
             </Field>
             <p className="record-note">이용자 환불 예정: {won(Math.max(0, fee - amount))}</p>
             <Field label="결정 사유" required>
-              <textarea rows={3} required value={note} onChange={(e) => setNote(e.target.value)} />
+              <textarea rows={3} required maxLength={1000} value={note} onChange={(e) => setNote(e.target.value)} />
             </Field>
             {amount > fee && <Notice tone="error">성공보수보다 많이 정할 수 없어요.</Notice>}
             <div className="modal-actions">
@@ -734,7 +742,7 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
                   ['신고', `#${n(row, 'reportId') ?? ''} · ${utcToLocal(s(row, 'reportedAt'))} · ${reportStatusNames[s(row, 'reportStatus') as ReportStatus] ?? s(row, 'reportStatus')}`],
                   ['신고 사유', reportReasonNames[s(row, 'reportReason')] ?? s(row, 'reportReason')],
                   ['시도 증빙', pick(row, 'hasAttemptEvidence') === true ? '있음' : '없음'],
-                  ['종결 시 환불', started ? '착수비는 도우미 몫(시도 증빙 승인 또는 지급 진행)이라 지급하고, 성공보수만 환불 대상(이용료 제외)' : '착수비·성공보수 환불 대상, 착수비 미지급(이용료 제외)'],
+                  ['종결 시 환불(안전거래일 때)', started ? '착수비는 도우미 몫(시도 증빙 승인 또는 지급 진행)이라 지급하고, 성공보수만 환불 대상(이용료 제외)' : '착수비·성공보수 환불 대상, 착수비 미지급(이용료 제외)'],
                 ]}
               >
                 <button type="button" className="btn secondary" onClick={() => setShown(id)}>
@@ -760,7 +768,7 @@ function NoResultList({ version, onClosed }: { version: number; onClosed: () => 
                           throw err;
                         }
                       },
-                      success: started ? '실패로 종결했어요. 착수비는 도우미에게 지급되고 이용자는 성공보수를 환불받을 수 있어요(이용료 제외).' : '실패로 종결했어요. 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).',
+                      success: started ? '실패로 종결했어요. 안전거래라면 착수비는 도우미에게 지급되고 이용자는 성공보수를 환불받을 수 있어요(이용료 제외).' : '실패로 종결했어요. 안전거래라면 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).',
                     })
                   }
                 >
@@ -833,7 +841,7 @@ function RequestsTab() {
         if (err instanceof ApiError && err.status === 403) throw new Error('본인이 당사자인 거래는 확정할 수 없어요.');
         throw err;
       }
-    }, unverified ? '시도 미확인으로 종결했어요. 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요.' : '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.');
+    }, unverified ? '시도 미확인으로 종결했어요. 안전거래라면 착수비는 지급되지 않고 이용자가 착수비·성공보수를 환불받을 수 있어요(이용료 제외).' : '결과를 확정했어요. 요청이 완료로 바뀌고 정산이 판단돼요.');
     if (ok) {
       setNote('');
       setResult('');
@@ -890,7 +898,7 @@ function RequestsTab() {
           </div>
           {upfrontStarted && <p className="record-note">이 요청은 착수비가 이미 도우미 몫으로 확정돼(시도 증빙 승인 또는 지급 시작) 시도 미확인 종결을 고를 수 없어요.</p>}
           {result === 'UNVERIFIED' && (
-            <Notice tone="error">시도 증빙이 미흡하거나 예매를 시도하지 않은 것으로 판단될 때 써요. 착수비를 도우미에게 지급하지 않고, 이용자는 착수비·성공보수를 환불받아요(이용료 제외). 시도 증빙이 승인됐거나 착수비 지급이 시작된 거래는 확정할 수 없어요.</Notice>
+            <Notice tone="error">시도 증빙이 미흡하거나 예매를 시도하지 않은 것으로 판단될 때 써요. 안전거래라면 착수비를 도우미에게 지급하지 않고, 이용자는 착수비·성공보수를 환불받아요(이용료 제외). 시도 증빙이 승인됐거나 착수비 지급이 시작된 거래는 확정할 수 없어요.</Notice>
           )}
           <Field label="확정 사유" required>
             <textarea rows={3} required maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -987,7 +995,7 @@ function PaymentsTab() {
                 onClick={() =>
                   open({
                     title: '처리 완료 기록',
-                    fields: [noteField('확인·조치 내용')],
+                    fields: [noteField('확인·조치 내용', 1000)],
                     submitText: '기록',
                     success: '처리 완료로 기록했어요.',
                     action: (v) => unwrap(api.POST('/api/admin/payments/review/resolutions', { body: { key: s(row, 'key'), note: v.note } })),
@@ -1066,7 +1074,7 @@ function ReportsTab() {
   const update = (row: Raw, next: ReportStatus) =>
     open({
       title: `신고 #${n(row, 'reportId')} ${reportStatusNames[next]}`,
-      fields: next === 'INVESTIGATING' ? [] : [{ name: 'note', label: '처리 사유 (신고자에게 공개)', required: true, type: 'textarea' }],
+      fields: next === 'INVESTIGATING' ? [] : [{ name: 'note', label: '처리 사유 (신고자에게 공개)', required: true, type: 'textarea', maxLength: 2000 }],
       submitText: next === 'INVESTIGATING' ? '조사 시작' : reportStatusNames[next],
       danger: next === 'DISMISSED',
       success: next === 'INVESTIGATING' ? '조사 중으로 바꿨어요.' : '신고 처리를 기록했어요.',
@@ -1266,7 +1274,7 @@ function UsersTab() {
   const restrict = (row: Raw, kind: 'user' | 'agent', suspended: boolean) =>
     open({
       title: `${kind === 'user' ? '이용' : '도우미 활동'} ${suspended ? '정지' : '정지 해제'}`,
-      fields: [noteField('사유')],
+      fields: [noteField('사유', 500)],
       submitText: suspended ? '정지' : '해제',
       danger: suspended,
       success: suspended ? '정지했어요.' : '해제했어요.',
@@ -1463,7 +1471,7 @@ function SetupTab() {
               </Field>
             </div>
             <Field label="홈페이지" required>
-              <input type="url" required pattern="https?://.+" value={platform.body.homepageUrl} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, homepageUrl: e.target.value } })} />
+              <input type="url" required pattern="https?://.+" maxLength={1000} value={platform.body.homepageUrl} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, homepageUrl: e.target.value } })} />
             </Field>
             <Field label="대리 신청 정책" required>
               <select value={platform.body.policyAssessment} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, policyAssessment: e.target.value as PlatformBody['policyAssessment'] } })}>
@@ -1475,10 +1483,10 @@ function SetupTab() {
               </select>
             </Field>
             <Field label="정책 근거 URL">
-              <input type="url" pattern="https?://.+" value={platform.body.policySourceUrl ?? ''} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, policySourceUrl: e.target.value } })} />
+              <input type="url" pattern="https?://.+" maxLength={1000} value={platform.body.policySourceUrl ?? ''} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, policySourceUrl: e.target.value } })} />
             </Field>
             <Field label="정책 메모">
-              <textarea rows={2} value={platform.body.policyNote ?? ''} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, policyNote: e.target.value } })} />
+              <textarea rows={2} maxLength={10000} value={platform.body.policyNote ?? ''} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, policyNote: e.target.value } })} />
             </Field>
             <label className="check-row">
               <input type="checkbox" checked={platform.body.enabled ?? true} onChange={(e) => setPlatform({ ...platform, body: { ...platform.body, enabled: e.target.checked } })} />

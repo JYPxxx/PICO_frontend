@@ -15375,7 +15375,8 @@
             "type": "string",
             "description": "reports.description. 신고 내용",
             "example": "합의와 다른 거래가 진행되었습니다.",
-            "minLength": 1
+            "maxLength": 4000,
+            "minLength": 0
           }
         },
         "required": [

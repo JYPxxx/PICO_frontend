@@ -6,13 +6,19 @@ import { EvidenceFileNames, EvidenceThumb, Field, FilePicker, Notice, TxCard, us
 
 // 분쟁 소명: 이의 제기(DISPUTED) 동안 운영팀 질문과 내 소명만 보인다. 상대방은 내 소명을 볼 수 없다.
 // GET/POST /api/requests/{requestId}/dispute/messages (첨부는 purpose=DISPUTE 업로드)
-export function DisputeCard({ requestId, disputed }: { requestId: number; disputed: boolean }) {
+export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: number; disputed: boolean; reloadDetail?: () => void }) {
   // 운영팀 질문 알림을 보고 돌아오면 새 질문이 보이도록 창 복귀 때 다시 불러온다.
   const [load, reload] = useLoad(() => unwrap<unknown>(api.GET('/api/requests/{requestId}/dispute/messages', { params: { path: { requestId } } })).then(list), [requestId], { refreshOnFocus: true });
   const [body, setBody] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState('');
-  const { pending, run } = useAction();
+  // 409(운영팀이 그사이 결과를 확정해 분쟁이 끝남 등): 서버 메시지를 보여 주고 소명과 요청 상세를 다시 불러온다.
+  const { pending, run } = useAction({
+    onConflict: () => {
+      reload();
+      reloadDetail?.();
+    },
+  });
   const messages = load.status === 'done' ? load.data : [];
   if (!disputed && messages.length === 0) return null;
   const latest = messages[messages.length - 1];

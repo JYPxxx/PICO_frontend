@@ -484,7 +484,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                       {image ? '이미지 변경' : '이미지 선택'}
                       <input
                         type="file"
-                        accept="image/jpeg,image/png,image/webp"
+                        accept="image/jpeg,image/png"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
                           e.target.value = '';
@@ -500,7 +500,7 @@ export function ApplicationPage({ edit: editRoute = false }: { edit?: boolean })
                       </button>
                     )}
                   </div>
-                  <small>JPG · PNG · WEBP / 최대 3MB</small>
+                  <small>JPG · PNG / 최대 3MB</small>
                 </div>
               </div>
               <Note>이 화면의 소개와 활동 정보는 공개 프로필에 표시돼요. 연락처와 인증 제출 자료는 공개하지 않습니다.</Note>

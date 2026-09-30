@@ -13,7 +13,7 @@ const MERGE_MS = 1_000;
 // 헤더(AppLayout)와 알림 화면이 같은 목록을 쓰도록 모듈 하나에서 상태·폴링을 공유한다.
 let items: Notification[] = [];
 const listeners = new Set<() => void>();
-/** 로그아웃하면 늘린다. 늦게 도착한 이전 사용자의 응답은 버린다. */
+/** 계정이 바뀌면(로그아웃 포함) 늘린다. 늦게 도착한 이전 계정의 응답은 버린다. */
 let generation = 0;
 let inFlight: Promise<void> | null = null;
 let lastFetch = 0;
@@ -83,14 +83,20 @@ function startPolling() {
   };
 }
 
+/** 지금 목록이 어느 계정의 것인지. 로그아웃이나 다른 계정 로그인으로 바뀌면 목록을 비우고 늦게 온 응답도 버린다. */
+let owner = '';
+
 /** 로그인한 동안 화면을 옮길 때(key가 바뀔 때), 창으로 돌아올 때, 화면이 보이는 동안 30초마다 새로 받는다. */
 export function useNotifications(key: string) {
-  const { loggedIn } = useAuth();
+  const { loggedIn, userKey } = useAuth();
   const current = useSyncExternalStore(subscribe, () => items);
   useEffect(() => {
-    if (!loggedIn) return reset();
-    void load(true);
-  }, [loggedIn, key]);
+    if (owner !== userKey) {
+      owner = userKey;
+      reset();
+    }
+    if (userKey) void load(true);
+  }, [userKey, key]);
   useEffect(() => (loggedIn ? startPolling() : undefined), [loggedIn]);
 
   async function open(n: Notification) {
