@@ -2,49 +2,24 @@ import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
 import { ApiError } from '../api/client';
 import { str, type Raw } from '../api/pick';
 import { Icon } from '../ui/Icon';
+import { FileAttachment } from '../ui/ImagePreview';
 import { money } from '../ui/format';
 import { useToast } from '../ui/Toast';
 import { MAX_FILE_BYTES, acceptOf, endedStages, fileKinds, mimeOf, stageNames, type FileKind, type Role, type Stage } from './model';
 
 // 프로토타입 transactions.js의 card()/notice()/badge()/next()/progress()/rows() 마크업
 
-/**
- * 증빙 첨부 썸네일. 서버가 열람 주소(url, 5분 유효)를 준 이미지 첨부면 사진을 보여 준다(차단·저장소 오류면 url이 없음).
- * 브라우저가 그리지 못하는 이미지(예전에 올라온 HEIC 등)나 만료된 주소는 파일 아이콘으로 대신한다.
- */
-export function EvidenceThumb({ files }: { files: Raw[] }) {
-  const image = files.find((f) => str(f.url) && str(f.mimeType)?.startsWith('image/'));
-  const src = image ? str(image.url) : undefined;
-  const [broken, setBroken] = useState<string | undefined>();
-  return (
-    <div className="tx-file-thumb">
-      {src && broken !== src ? <img src={src} alt={str(image?.originalName) ?? '증빙 이미지'} onError={() => setBroken(src)} /> : <Icon name="file" size={24} />}
-    </div>
-  );
-}
-
-/** 첨부 파일명 · 검토 상태. 열람 주소가 있으면 파일명을 누르면 받을 수 있다. */
+/** Stored attachments: clickable photo thumbnails, document links and review status. */
 export function EvidenceFileNames({ files, status }: { files: Raw[]; status: (file: Raw) => string }) {
   return (
-    <>
-      {files.map((f, i) => {
-        const name = str(f.originalName) ?? '파일';
-        const url = str(f.url);
-        return (
-          <span key={str(f.id) ?? i}>
-            {i > 0 && ', '}
-            {url ? (
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                {name}
-              </a>
-            ) : (
-              name
-            )}
-            {` · ${status(f)}`}
-          </span>
-        );
-      })}
-    </>
+    <span className="evidence-attachments">
+      {files.map((f, i) => (
+        <span className="evidence-attachment" key={str(f.id) ?? str(f.attachmentId) ?? i}>
+          <FileAttachment url={str(f.url)} name={str(f.originalName) ?? '파일'} mimeType={str(f.mimeType)} />
+          {status(f) && <span>{status(f)}</span>}
+        </span>
+      ))}
+    </span>
   );
 }
 
@@ -73,7 +48,7 @@ export function StatusBadge({ stage }: { stage: Stage }) {
   const tone = endedStages.includes(stage) ? 'muted' : stage === 'pending' || stage === 'policy_review' ? 'amber' : 'blue';
   return (
     <span className={`tx-status ${tone}`}>
-      <Icon name={stage === 'completed' ? 'check' : 'clock'} size={13} /> {stageNames[stage]}
+      <Icon name={(stage === 'completed' || stage === 'matching_completed') ? 'check' : 'clock'} size={13} /> {stageNames[stage]}
     </span>
   );
 }
@@ -90,6 +65,7 @@ const nextCopy: Record<Stage, [string, string, string?]> = {
   in_progress: ['도우미가 예매 결과를 등록할 차례예요', '도우미가 올린 시도 증빙을 확인하며 결과를 기다려 주세요.', '시도 증빙을 올리고, 예매가 끝나면 결과 증빙을 올려 주세요. 운영팀 파일 검토 후 결과를 제출할 수 있어요.'],
   result_submitted: ['이용자가 예매 결과를 확인할 차례예요', '확정 조건과 등록된 결과를 함께 확인해 주세요.', '이용자가 결과를 확인하고 있어요.'],
   disputed: ['양쪽 결과가 달라 운영팀이 확인하고 있어요', '운영팀이 증빙을 검토해 결과를 확정해요.'],
+  matching_completed: ['직접 거래 매칭을 마쳤어요', '착수·결과 등록 없이 당사자끼리 진행해요. 이용자는 거래 경험과 예매 결과를 후기로 남길 수 있어요.', '착수·결과 등록 없이 이용자와 직접 진행해 주세요.'],
   completed: ['결과 확인을 마쳤어요', '안전거래라면 정산·환불은 확정된 결과와 합의 조건에 따라 처리돼요. 직접 거래는 당사자끼리 정산해요.'],
   cancelled: ['이 요청은 취소되었어요', '새 요청은 도우미 프로필에서 보낼 수 있어요.'],
   rejected: ['도우미가 요청을 거절했어요', '다른 도우미를 찾아 요청해 보세요.'],
@@ -100,9 +76,9 @@ export function NextStep({ stage, role }: { stage: Stage; role: Role }) {
   const [title, userText, agentText] = nextCopy[stage];
   const text = role === 'agent' && agentText !== undefined ? agentText : userText;
   return (
-    <div className={`tx-next ${stage === 'completed' ? 'success' : ''}`}>
+    <div className={`tx-next ${(stage === 'completed' || stage === 'matching_completed') ? 'success' : ''}`}>
       <span className="tx-next-icon">
-        <Icon name={stage === 'completed' ? 'check' : 'clock'} size={22} />
+        <Icon name={(stage === 'completed' || stage === 'matching_completed') ? 'check' : 'clock'} size={22} />
       </span>
       <div>
         <strong>{title}</strong>
@@ -121,14 +97,16 @@ const steps: [string, Stage[]][] = [
   ['이용자 결과 확인', ['result_submitted', 'disputed']],
 ];
 
-/** direct: 직접 거래 조건이면 플랫폼 결제가 없어 '안전거래 결제' 단계를 뺀다. */
+/** 직접 거래는 조건 확인 후 매칭 완료·후기로 종료한다. */
 export function Progress({ stage, direct = false }: { stage: Stage; direct?: boolean }) {
-  const shown = direct ? steps.filter(([, s]) => !s.includes('payment')) : steps;
+  const shown: [string, Stage[]][] = direct
+    ? [...steps.slice(0, 3), ['매칭 완료 · 후기', ['matching_completed', 'completed']]]
+    : steps;
   const active = shown.findIndex(([, s]) => s.includes(stage));
   return (
     <ol aria-label="거래 진행 상황">
       {shown.map(([label], i) => {
-        const done = stage === 'completed' || (active >= 0 && i < active);
+        const done = (stage === 'completed' || stage === 'matching_completed') || (active >= 0 && i < active);
         const current = i === active;
         return (
           <li key={label} className={done ? 'done' : current ? 'current' : 'upcoming'} aria-current={current ? 'step' : undefined}>

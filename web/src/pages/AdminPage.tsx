@@ -4,8 +4,10 @@ import { api, unwrap, ApiError } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
 import { useLoad } from '../transactions/model';
-import { EvidenceFileNames, EvidenceThumb, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
+import { EvidenceFileNames, Field, MoneyInput, Notice, useAction, utcToLocal, won } from '../transactions/ui';
 import { Modal } from '../ui/Modal';
+import { ImagePreview, ImageViewer } from '../ui/ImagePreview';
+import { isImageFile } from '../ui/imageFile';
 import { PageTitle } from '../ui/PageTitle';
 
 // 관리자 화면. 프로토타입에 없어서 기존 화면 부품(content-card, tabs, document-rows, btn)으로 만든다.
@@ -215,6 +217,7 @@ function PolicyTab() {
 // ── 증빙 파일 검토(도우미 심사용 CAREER·ACTIVITY·BUSINESS) ─────────────
 // 서버 목록은 결과 증빙(RESULT)·분쟁 소명(DISPUTE)을 빼고 주며, 두 파일은 승인·차단해도 409다(EvidenceUploadService.review).
 function FilesTab() {
+  const [photo, setPhoto] = useState<{ src: string; name: string } | null>(null);
   const [load, reload] = useAdminList(() => unwrap(api.GET('/api/admin/evidence-files', { params: { query: { size: 100 } } })));
   const { open, modal, pending, run } = useDialog(reload);
   const fileId = (row: Raw) => n(row, 'fileId', 'attachmentId', 'id')!;
@@ -223,7 +226,9 @@ function FilesTab() {
       const p = await unwrap<unknown>(api.GET('/api/admin/evidence-files/{fileId}/preview', { params: { path: { fileId: fileId(row) } } }));
       const url = typeof p === 'string' ? p : s(p, 'url', 'downloadUrl', 'previewUrl');
       if (!url) throw new Error('열람 URL을 받지 못했어요.');
-      window.open(url, '_blank', 'noopener');
+      const name = s(row, 'originalName', 'fileName') || '증빙 사진';
+      if (isImageFile(s(row, 'mimeType'), name)) setPhoto({ src: url, name });
+      else window.open(url, '_blank', 'noopener');
     });
   const review = (row: Raw, approved: boolean) =>
     open({
@@ -267,6 +272,7 @@ function FilesTab() {
         }
       </ListBlock>
       {modal}
+      {photo && <ImageViewer src={photo.src} alt={photo.name} onClose={() => setPhoto(null)} />}
     </>
   );
 }
@@ -379,13 +385,7 @@ function AttemptsTab() {
                 ['제출 시각', utcToLocal(s(row, 'submittedAt'))],
               ]}
             >
-              {list(pick(row, 'attachments'))
-                .filter((f) => s(f, 'url'))
-                .map((f, i) => (
-                  <a key={i} className="btn secondary" href={s(f, 'url')} target="_blank" rel="noreferrer">
-                    첨부 {i + 1} 보기
-                  </a>
-                ))}
+              <EvidenceFileNames files={list(pick(row, 'attachments'))} status={(f) => s(f, 'scanStatus')} />
               <button
                 type="button"
                 className="btn primary"
@@ -584,7 +584,6 @@ function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAs
               const files = list(pick(e, 'attachments'));
               return (
                 <div key={i} className="tx-file-view">
-                  <EvidenceThumb files={files} />
                   <div>
                     <strong>
                       {kind} · {n(e, 'revision') ?? 1}차 {s(e, 'status') ? `· ${evidenceStatusNames[s(e, 'status')] ?? s(e, 'status')}` : ''}
@@ -608,7 +607,6 @@ function EvidenceModal({ id, allowAsk, onClose, onAsked }: { id: number; allowAs
                   const question = s(m, 'kind') === 'QUESTION';
                   return (
                     <div key={String(n(m, 'id'))} className="tx-file-view">
-                      <EvidenceThumb files={files} />
                       <div>
                         <strong>
                           {question ? '운영팀 질문' : `${who} 답변`} · {utcToLocal(s(m, 'createdAt'))}
@@ -1169,7 +1167,6 @@ function ReportEvidenceModal({ reportId, onClose }: { reportId: number; onClose:
           const files = list(pick(e, 'attachments'));
           return (
             <div key={String(n(e, 'evidenceId') ?? i)} className="tx-file-view">
-              <EvidenceThumb files={files} />
               <div>
                 <strong>
                   {n(e, 'revision') ?? 1}차 제출 · {utcToLocal(s(e, 'submittedAt'))}
@@ -1224,9 +1221,7 @@ function ReviewsTab() {
                   [
                     '사진',
                     s(row, 'imageUrl') ? (
-                      <a key="photo" href={s(row, 'imageUrl')} target="_blank" rel="noreferrer">
-                        보기
-                      </a>
+                      <ImagePreview key="photo" src={s(row, 'imageUrl')} alt="후기 인증 사진" className="review-photo" />
                     ) : (
                       ''
                     ),

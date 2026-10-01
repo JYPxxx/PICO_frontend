@@ -175,7 +175,7 @@ export function toAgreement(raw: Raw): Agreement {
 }
 
 // ── 화면 단계 ─────────────────────────────────────────────
-// 명세의 RequestStatus는 8개뿐이라 MATCHED·IN_PROGRESS 안의 세부 단계는 합의·결제·결과로 나눈다.
+// MATCHED·IN_PROGRESS 안의 세부 단계는 합의·결제·결과로 나눈다. 직접 거래는 MATCHING_COMPLETED로 종료한다.
 export type Stage =
   | 'policy_review'
   | 'policy_blocked'
@@ -188,6 +188,7 @@ export type Stage =
   | 'in_progress'
   | 'result_submitted'
   | 'disputed'
+  | 'matching_completed'
   | 'completed'
   | 'rejected'
   | 'expired'
@@ -205,13 +206,14 @@ export const stageNames: Record<Stage, string> = {
   in_progress: '예매 진행 중',
   result_submitted: '결과 확인 대기',
   disputed: '결과 확인 중(분쟁)',
+  matching_completed: '직접 거래 매칭 완료',
   completed: '거래 완료',
   rejected: '요청 거절',
   expired: '요청 만료',
   cancelled: '요청 취소',
 };
 
-export const endedStages: Stage[] = ['completed', 'rejected', 'expired', 'cancelled'];
+export const endedStages: Stage[] = ['matching_completed', 'completed', 'rejected', 'expired', 'cancelled'];
 
 const policyWaiting = ['PENDING', 'REVIEW', 'PENDING_REVIEW', 'IN_REVIEW', 'WAITING'];
 
@@ -232,6 +234,7 @@ const serverStages: Record<string, Stage> = {
   IN_PROGRESS: 'in_progress',
   RESULT_CONFIRMATION: 'result_submitted',
   DISPUTED: 'disputed',
+  MATCHING_COMPLETED: 'matching_completed',
   COMPLETED: 'completed',
   REJECTED: 'rejected',
   EXPIRED: 'expired',
@@ -262,6 +265,8 @@ export function stageOf(r: TxRequest, agreements: Agreement[] = [], changeReques
       return r.agentResult ? 'result_submitted' : 'in_progress';
     case 'DISPUTED':
       return 'disputed';
+    case 'MATCHING_COMPLETED':
+      return 'matching_completed';
     case 'COMPLETED':
       return 'completed';
     case 'REJECTED':
@@ -336,18 +341,19 @@ const loadRefunds = (paymentId: number) =>
 
 export async function fetchDetail(id: number): Promise<Detail> {
   const request = toRequest(await unwrap<Raw>(api.GET('/api/requests/{requestId}', path(id))));
-  const matched = ['MATCHED', 'IN_PROGRESS', 'DISPUTED', 'COMPLETED'].includes(request.status);
-  // 가이드 6-4: 연락처는 MATCHED·IN_PROGRESS·DISPUTED에서만 공개되고, 완료·취소 후에는 닫힌다.
-  const contactsOpen = ['MATCHED', 'IN_PROGRESS', 'DISPUTED'].includes(request.status);
-  const started = ['IN_PROGRESS', 'DISPUTED', 'COMPLETED'].includes(request.status);
-  const [agreementsRaw, evidences, contacts, resultEvidencesRaw] = await Promise.all([
-    matched ? soft(unwrap<unknown>(api.GET('/api/requests/{requestId}/agreements', path(id))), []) : Promise.resolve([]),
-    matched ? soft(unwrap<Evidence[]>(api.GET('/api/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })), []) : Promise.resolve([]),
-    contactsOpen ? soft(unwrap<Raw>(api.GET('/api/requests/{requestId}/contacts', path(id))), null) : Promise.resolve(null),
-    started ? soft(unwrap<unknown>(api.GET('/api/requests/{requestId}/result/evidence', path(id))), []) : Promise.resolve([]),
-  ]);
+  const matched = ['MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'DISPUTED', 'COMPLETED'].includes(request.status);
+  const agreementsRaw = matched ? await soft(unwrap<unknown>(api.GET('/api/requests/{requestId}/agreements', path(id))), []) : [];
   const agreements = list(agreementsRaw).map(toAgreement);
   const latest = latestAgreement(agreements);
+  const safe = !!latest?.safePayment;
+  // 직접 거래 매칭 완료 후에도 연락처를 조회한다. 안전거래 완료·요청 취소 후에는 닫힌다.
+  const contactsOpen = ['MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'DISPUTED'].includes(request.status);
+  const started = ['IN_PROGRESS', 'DISPUTED', 'COMPLETED'].includes(request.status);
+  const [evidences, contacts, resultEvidencesRaw] = await Promise.all([
+    safe && matched ? soft(unwrap<Evidence[]>(api.GET('/api/requests/{requestId}/attempt-evidences', { params: { path: { requestId: id }, query: { page: 0, size: 20 } } })), []) : Promise.resolve([]),
+    contactsOpen ? soft(unwrap<Raw>(api.GET('/api/requests/{requestId}/contacts', path(id))), null) : Promise.resolve(null),
+    safe && started ? soft(unwrap<unknown>(api.GET('/api/requests/{requestId}/result/evidence', path(id))), []) : Promise.resolve([]),
+  ]);
   // 확정된 조건에도 이용자가 변경을 요청할 수 있다(결제 전). 이때도 요청 사유를 보여 주려고 불러온다.
   const changeRequests =
     latest && (latest.status === 'PROPOSED' || request.agreementChangePending)
@@ -365,10 +371,11 @@ export async function fetchDetail(id: number): Promise<Detail> {
   if (latest && payment && !latest.paymentStatus) latest.paymentStatus = str(payment.status) ?? '';
   // 후기 없음·삭제·숨김은 404. '후기 없음'으로 본다.
   const completed = request.status === 'COMPLETED';
+  const reviewable = completed || request.status === 'MATCHING_COMPLETED';
   const finalized = agreements.find((a) => a.status === 'FINALIZED');
   const final = request.finalResult ?? (request.requesterResult === request.agentResult ? request.agentResult : undefined);
   const [review, partial, refunds] = await Promise.all([
-    completed ? soft(unwrap<Review>(api.GET('/api/requests/{requestId}/review', path(id))), null) : Promise.resolve(null),
+    reviewable ? soft(unwrap<Review>(api.GET('/api/requests/{requestId}/review', path(id))), null) : Promise.resolve(null),
     completed && final === 'PARTIAL' && finalized?.safePayment ? soft(unwrap<Raw>(api.GET('/api/requests/{requestId}/partial-settlement', path(id))), null) : Promise.resolve(null),
     // 요청 요약의 paymentId로 바로 조회한다(결제 상세를 따로 불러오지 않아도). 도우미는 404라 빈 목록이 된다.
     paymentId ? loadRefunds(paymentId) : Promise.resolve([] as Raw[]),

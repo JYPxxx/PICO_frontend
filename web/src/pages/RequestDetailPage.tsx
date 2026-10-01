@@ -21,8 +21,9 @@ import {
   type Role,
   type TxRequest,
 } from '../transactions/model';
-import { EvidenceFileNames, EvidenceThumb, Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
+import { EvidenceFileNames, Field, NextStep, Notice, Progress, Rows, StatusBadge, TxCard, useAction, utcToLocal, won } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
+import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 import { money } from '../ui/format';
@@ -534,8 +535,9 @@ export function RequestDetailPage() {
         ) : (
           <Notice>이의를 접수했어요. 아래 분쟁 소명에 자세한 내용과 자료를 남겨 주시면 운영팀이 보고 최종 결과를 정해요.</Notice>
         );
+      case 'matching_completed':
       case 'completed':
-        if (agent || d.review) return <Notice tone="success">{d.review ? '이용자가 거래 후기를 남겼어요.' : '거래 결과 확인을 완료했어요.'}</Notice>;
+        if (agent || d.review) return <Notice tone="success">{d.review ? '이용자가 거래 후기를 남겼어요.' : stage === 'matching_completed' ? '직접 거래 매칭을 완료했어요. 착수·결과 등록 없이 당사자끼리 진행해 주세요.' : '거래 결과 확인을 완료했어요.'}</Notice>;
         // 가이드 12-1: 거래당 후기 1개, 삭제·숨김 후에도 다시 쓸 수 없다(서버 409). 상세 응답의 reviewWritten으로 가린다.
         if (r.reviewWritten || usedReviews.has(r.id)) return <Notice>이 거래의 후기는 이미 작성했어요(삭제·숨김 포함). 거래당 후기는 한 번만 쓸 수 있어 다시 작성할 수 없어요.</Notice>;
         return go(`/requests/${r.id}/review`, '후기 작성');
@@ -654,9 +656,9 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
-          {finalized && !finalized.safePayment && ['MATCHED', 'IN_PROGRESS', 'COMPLETED', 'DISPUTED'].includes(r.status) && (
+          {finalized && !finalized.safePayment && ['MATCHED', 'MATCHING_COMPLETED', 'IN_PROGRESS', 'COMPLETED', 'DISPUTED'].includes(r.status) && (
             <TxCard title="직접 거래">
-              <Notice>플랫폼 결제 없이 당사자끼리 정산하는 거래예요. 플랫폼은 매칭·합의·결과만 기록하고, 착수비·성공보수 지급과 환불은 하지 않아요.</Notice>
+              <Notice>플랫폼 결제 없이 당사자끼리 정산하는 거래예요. 플랫폼은 조건 확정으로 매칭을 완료해요. 착수·성공 결과를 등록할 필요 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요. 지급과 환불은 당사자끼리 처리해요.</Notice>
             </TxCard>
           )}
 
@@ -692,7 +694,6 @@ export function RequestDetailPage() {
                 const files = list(pick(e, 'attachments'));
                 return (
                   <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
-                    <EvidenceThumb files={files} />
                     <div>
                       <strong>{num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}</strong>
                       <small>{str(pick(e, 'description')) || '설명 없음'}</small>
@@ -707,7 +708,7 @@ export function RequestDetailPage() {
                   </div>
                 );
               })}
-              <p className="record-note">파일 이름을 누르면 원본을 받을 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과를 정해요.</p>
+              <p className="record-note">사진을 누르면 확대해서 볼 수 있어요. 결과에 이의가 있으면 운영팀이 이 증빙을 보고 결과를 정해요.</p>
             </TxCard>
           )}
 
@@ -717,7 +718,6 @@ export function RequestDetailPage() {
                 const files = (e.attachments ?? []) as unknown as Raw[];
                 return (
                   <div key={e.evidenceId} className="tx-file-view">
-                    <EvidenceThumb files={files} />
                     <div>
                       <strong>
                         {e.revision}차 제출 · {evidenceNames[e.status] ?? e.status}
@@ -770,8 +770,9 @@ export function RequestDetailPage() {
                 </span>
                 <time>{utcToLocal(d.review.reviewedAt)}</time>
               </div>
+              {d.review.bookingResult && <p className="record-note">이용자가 후기에 남긴 예매 결과: {resultNames[d.review.bookingResult]}</p>}
               {d.review.comment && <p className="prose">{d.review.comment}</p>}
-              {d.review.imageUrl && <img src={d.review.imageUrl} alt="후기 인증 사진" style={{ maxWidth: 240, borderRadius: 12 }} />}
+              {d.review.imageUrl && <ImagePreview src={d.review.imageUrl} alt="후기 인증 사진" className="review-photo" />}
               {!agent && (
                 <button
                   type="button"
@@ -785,7 +786,7 @@ export function RequestDetailPage() {
             </TxCard>
           )}
 
-          {r.agentResult && (
+          {finalized?.safePayment && r.agentResult && (
             <TxCard
               title={
                 <>
@@ -890,14 +891,14 @@ export function RequestDetailPage() {
           onConfirm={() =>
             act(
               () => unwrap(api.POST('/api/requests/{requestId}/agreements/{agreementId}/accept', { params: { path: { requestId, agreementId: latest.id } } })),
-              latest.safePayment ? '조건을 확정했어요. 안전거래 결제를 진행해 주세요.' : '조건을 확정했어요.',
+              latest.safePayment ? '조건을 확정했어요. 안전거래 결제를 진행해 주세요.' : '직접 거래 매칭을 완료했어요. 이후 당사자끼리 진행하고 후기를 남겨 주세요.',
             )
           }
         >
           <p className="prose">
             확정한 뒤에는 조건을 바꿀 수 없어요.
             <br />
-            {latest.safePayment ? `확정 후 ${money(latest.upfrontFeeKrw + latest.successFeeKrw + latest.safetyFeeKrw)}원을 안전거래로 결제해요.` : '직접 거래 조건이라 플랫폼 결제 없이 진행돼요.'}
+            {latest.safePayment ? `확정 후 ${money(latest.upfrontFeeKrw + latest.successFeeKrw + latest.safetyFeeKrw)}원을 안전거래로 결제해요.` : '확정하면 직접 거래 매칭이 완료돼요. 착수·결과 등록 없이 당사자끼리 진행하고, 이용자는 후기를 남길 수 있어요.'}
           </p>
         </ConfirmModal>
       )}

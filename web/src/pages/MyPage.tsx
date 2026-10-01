@@ -11,6 +11,7 @@ import { Field, useAction, utcToLocal, won } from '../transactions/ui';
 import { AccountCard, AccountInput, AccountNote, Verification } from '../ui/account';
 import { tokenFrom } from '../ui/format';
 import { Icon } from '../ui/Icon';
+import { ImagePreview } from '../ui/ImagePreview';
 import { Modal } from '../ui/Modal';
 import { PageTitle } from '../ui/PageTitle';
 import { useToast } from '../ui/Toast';
@@ -37,7 +38,7 @@ function useAvatar(key: unknown) {
 function Avatar({ url, name }: { url: string | null; name: string }) {
   return (
     <span className="avatar blue large">
-      {url ? <img src={url} alt={`${name} 프로필`} /> : name[0] || '나'}
+      {url ? <ImagePreview src={url} alt={`${name} 프로필`} /> : name[0] || '나'}
       <span className="avatar-spark">✦</span>
     </span>
   );

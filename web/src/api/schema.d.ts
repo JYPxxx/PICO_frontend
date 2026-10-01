@@ -383,7 +383,7 @@ export interface paths {
         put?: never;
         /**
          * 대행 착수 상태로 변경
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 쌍방 합의 확정이 필요하며 안전거래는 PAID 확인 후 착수합니다. 실제 착수비 지급 API가 아닙니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 안전거래만 허용하며 쌍방 합의 확정 및 PAID 확인 후 착수합니다. 직접 거래는 409입니다. 실제 착수비 지급 API가 아닙니다.
          */
         post: operations["start"];
         delete?: never;
@@ -407,7 +407,7 @@ export interface paths {
         put?: never;
         /**
          * 후기 작성
-         * @description COMPLETED 거래의 요청자만 작성할 수 있습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
+         * @description 안전거래 COMPLETED 또는 직접 거래 MATCHING_COMPLETED의 요청자만 작성할 수 있습니다. bookingResult는 선택이며 이용자가 기록한 후기 결과로만 저장하고 거래 확정 결과·결제·정산을 바꾸지 않습니다. requests의 후기 컬럼을 사용하며 별도 리뷰 ID를 만들지 않습니다. 거래 1건당 1개이며 삭제한 후기도 다시 작성할 수 없습니다(409). 요청자가 아니면 403, 없는 거래는 404입니다. imageKey는 purpose=REVIEW_IMAGE로 본인이 업로드한 파일만 허용하며 소유권·MIME·파일 시그니처를 검증한 뒤 서버 전용 경로에 비공개로 보관합니다. JPEG·PNG는 서버가 최대 2048px JPEG로 재인코딩(EXIF 제거)한 공개본을 만들어 imageUrl로 제공합니다. WebP·HEIC·손상 파일은 후기는 저장되지만 imageUrl=null입니다. 프런트 사진 입력은 accept="image/jpeg,image/png"로 두세요(아이폰 웹은 HEIC를 JPEG로 변환해 올립니다). 작성·삭제는 거래·결제·정산 상태를 바꾸지 않습니다.
          */
         post: operations["createReview"];
         /**
@@ -431,7 +431,7 @@ export interface paths {
         put?: never;
         /**
          * 대행자가 처리 결과 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED·APPROVED·REJECTED 중 하나여야 합니다(반려돼도 결과 제출 가능, 이용자 불복 시 운영팀이 판단). 제출 후 24시간 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다. 결과 제출 뒤 도우미가 결과 증빙을 추가하면 그 시각부터 다시 24시간입니다(요청 상세 resultConfirmDueAt).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. 안전거래의 도우미만 IN_PROGRESS에서 한 번 제출합니다. 결과 증빙은 선택이고, FAILURE는 최신 시도 증빙이 SUBMITTED·APPROVED·REJECTED 중 하나여야 합니다(반려돼도 결과 제출 가능, 이용자 불복 시 운영팀이 판단). 제출 후 24시간 동안 이용자가 답하지 않으면 관리자가 확정할 수 있습니다. 결과 제출 뒤 도우미가 결과 증빙을 추가하면 그 시각부터 다시 24시간입니다(요청 상세 resultConfirmDueAt).
          */
         post: operations["result"];
         delete?: never;
@@ -449,13 +449,13 @@ export interface paths {
         };
         /**
          * 거래 당사자의 결과 증빙 조회
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다.
          */
         get: operations["list_1"];
         put?: never;
         /**
          * 도우미의 결과 증빙 제출
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409).
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다.
          */
         post: operations["submit"];
         delete?: never;
@@ -475,7 +475,7 @@ export interface paths {
         put?: never;
         /**
          * 이용자가 결과 확인
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 이용자가 도우미 결과에 답합니다. agreed=true면 도우미 결과로 COMPLETED, agreed=false면 DISPUTED(note에 불복 사유 필수)이고 관리자가 확정합니다. 이전 형식(result만 전송)은 도우미 결과와 같으면 동의, 다르면 불복입니다. 결제 정산·지급 완료를 의미하지 않습니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. 안전거래만 허용합니다(직접 거래는 409). 이용자가 도우미 결과에 답합니다. agreed=true면 도우미 결과로 COMPLETED, agreed=false면 DISPUTED(note에 불복 사유 필수)이고 관리자가 확정합니다. 이전 형식(result만 전송)은 도우미 결과와 같으면 동의, 다르면 불복입니다. 결제 정산·지급 완료를 의미하지 않습니다.
          */
         post: operations["confirm"];
         delete?: never;
@@ -695,7 +695,7 @@ export interface paths {
         put?: never;
         /**
          * 해당 버전 최종합의에 동의
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 직접 거래(수수료 0원)는 조건 확정 시 MATCHING_COMPLETED로 매칭이 완료됩니다. 착수·결과 제출 없이 후기 작성과 연락처 조회가 가능하며 확정 후 조건 변경·요청 취소는 409입니다.
          */
         post: operations["acceptAgreement"];
         delete?: never;
@@ -2197,7 +2197,7 @@ export interface paths {
         };
         /**
          * 요청별 결과 증빙(관리자)
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). ADMIN 권한이 필요합니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. 비공개 증빙입니다. /api/evidence-files/upload-url로 발급받아 PUT 업로드한 storageKey를 제출합니다. 서버에서 소유자·용도·크기·파일 헤더를 확인합니다. 경력·활동·사업자 증빙은 관리자 파일 검토 전에는 열람 URL이 없고, 결과(RESULT) 증빙은 파일 검토 없이 거래 당사자에게 5분 유효 URL을 줍니다(BLOCKED 제외). 관리자 승인은 자동 악성코드 검사를 뜻하지 않습니다. purpose=CAREER/ACTIVITY/BUSINESS/RESULT/DISPUTE, CAREER의 caseNumber=1~3, 나머지=1입니다. 결과 증빙은 RESULT, 분쟁 소명 첨부는 DISPUTE입니다. RESULT·DISPUTE 파일은 관리자 파일 검토(승인·차단) 대상이 아닙니다(review 호출 시 409). ADMIN 권한이 필요합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다.
          */
         get: operations["resultEvidence"];
         put?: never;
@@ -2257,7 +2257,7 @@ export interface paths {
         };
         /**
          * 결과 분쟁·이용자 무응답(24시간) 목록
-         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),resultConfirmDueAt,agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비가 도우미 몫으로 확정돼(지급 시작 또는 현재 결제 이후 시도 증빙 승인) attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400). 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
+         * @description 구현된 API입니다. 응답은 success/data/message 형식입니다. 페이지는 0부터 시작합니다. ADMIN 권한이 필요합니다. 착수·결과 등록은 안전거래 전용입니다. 직접 거래 제출·검토는 409입니다. data=[{id,submittedTargetName,status,reviewReason(DISPUTED|CONFIRMATION_OVERDUE),resultConfirmDueAt,agentResult,agentResultNote,actualOutcomeDescription,agentResultSubmittedAt,requesterResult,requesterResultConfirmedAt,disputeNote,hasResultEvidence,hasAttemptEvidence,statementCount,awaitingRequesterReply,awaitingAgentReply,upfrontPayoutStarted,...}] 오래된 순. upfrontPayoutStarted=true면 착수비가 도우미 몫으로 확정돼(지급 시작 또는 현재 결제 이후 시도 증빙 승인) attemptUnverified 종결을 쓸 수 없습니다. 호출한 관리자가 당사자인 거래는 빠집니다. page=0~10000, size=1~100(범위 밖 400). 증빙은 /api/admin/requests/{requestId}/result/evidence와 /api/admin/requests/{requestId}/attempt-evidences로 봅니다.
          */
         get: operations["resultReview"];
         put?: never;
@@ -2838,7 +2838,12 @@ export interface components {
              */
             completedAt?: string | null;
         };
-        /** @description 거래 완료 후 요청자가 도우미에게 작성하는 후기 */
+        /**
+         * @description requests.final_result의 DDL CHECK 허용값
+         * @enum {string}
+         */
+        RequestResult: "SUCCESS" | "PARTIAL" | "FAILURE";
+        /** @description 안전거래 완료 또는 직접 거래 매칭 완료 후 이용자가 도우미에게 작성하는 후기 */
         ReviewCreateRequest: {
             /**
              * Format: int32
@@ -2856,6 +2861,8 @@ export interface components {
              * @example reviews/example.png
              */
             imageKey?: string | null;
+            /** @description 이용자가 후기에 기록하는 예매 결과(선택). 거래 확정 결과·결제·정산과 무관 */
+            bookingResult?: components["schemas"]["RequestResult"];
         };
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseReviewResponse: {
@@ -2910,17 +2917,14 @@ export interface components {
              * @example 2026-09-19T01:00:00
              */
             reviewedAt: string;
+            /** @description 이용자가 후기에 기록한 예매 결과. 미선택·기존 후기는 null; 거래 확정 결과가 아님 */
+            bookingResult?: components["schemas"]["RequestResult"];
         };
         /**
          * @description requests.requester_review_status의 DDL CHECK 허용값
          * @enum {string}
          */
         ReviewStatus: "VISIBLE" | "HIDDEN" | "DELETED";
-        /**
-         * @description requests.final_result의 DDL CHECK 허용값
-         * @enum {string}
-         */
-        RequestResult: "SUCCESS" | "PARTIAL" | "FAILURE";
         Result: {
             result: components["schemas"]["RequestResult"];
             note: string;
@@ -3948,7 +3952,7 @@ export interface components {
          * @description requests.status의 DDL CHECK 허용값
          * @enum {string}
          */
-        RequestStatus: "PENDING" | "REJECTED" | "EXPIRED" | "MATCHED" | "IN_PROGRESS" | "DISPUTED" | "COMPLETED" | "CANCELLED";
+        RequestStatus: "PENDING" | "REJECTED" | "EXPIRED" | "MATCHED" | "MATCHING_COMPLETED" | "IN_PROGRESS" | "DISPUTED" | "COMPLETED" | "CANCELLED";
         /** @description 공통 응답. 성공은 success=true, 오류는 success=false와 data=null */
         ApiResponseListMapStringObject: {
             success?: boolean;
@@ -6326,7 +6330,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 미완료 거래 또는 이미 작성한 후기 */
+            /** @description 안전거래·직접 거래 매칭 미완료 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6410,7 +6414,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 미완료 거래 또는 이미 작성한 후기 */
+            /** @description 안전거래·직접 거래 매칭 미완료 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6490,7 +6494,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 미완료 거래 또는 이미 작성한 후기 */
+            /** @description 안전거래·직접 거래 매칭 미완료 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -13698,7 +13702,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiResponseError"];
                 };
             };
-            /** @description 미완료 거래 또는 이미 작성한 후기 */
+            /** @description 안전거래·직접 거래 매칭 미완료 또는 이미 작성한 후기 */
             409: {
                 headers: {
                     [name: string]: unknown;

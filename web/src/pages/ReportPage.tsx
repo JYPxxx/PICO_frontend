@@ -4,7 +4,7 @@ import { api, unwrap } from '../api/client';
 import { list, num, str, type Raw } from '../api/pick';
 import type { components } from '../api/schema';
 import { uploadReportFile, useLoad } from '../transactions/model';
-import { Field, FilePicker, Notice, useAction, utcToLocal } from '../transactions/ui';
+import { EvidenceFileNames, Field, FilePicker, Notice, useAction, utcToLocal } from '../transactions/ui';
 import { AccountCard, AccountNote } from '../ui/account';
 import { PageTitle } from '../ui/PageTitle';
 
@@ -210,15 +210,7 @@ function ReportEvidence({ reportId, open }: { reportId: number; open: boolean })
                   {num(ev.revision)}차 제출 · {utcToLocal(str(ev.submittedAt) ?? '')}
                 </strong>
                 {str(ev.description) && <small>{str(ev.description)}</small>}
-                {list(ev.attachments).map((f) =>
-                  str(f.url) ? (
-                    <a key={String(f.attachmentId)} href={str(f.url)} target="_blank" rel="noreferrer">
-                      {str(f.originalName) ?? '파일'}
-                    </a>
-                  ) : (
-                    <small key={String(f.attachmentId)}>{str(f.originalName) ?? '파일'} · 열람할 수 없음</small>
-                  ),
-                )}
+                <EvidenceFileNames files={list(ev.attachments)} status={() => ''} />
               </div>
             </div>
           ))}

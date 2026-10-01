@@ -23,6 +23,7 @@ import { categoryNames, usePlatforms } from '../discovery/agent';
 import { useLoad } from '../transactions/model';
 import { FilePicker, MoneyInput, kstDay, useAction } from '../transactions/ui';
 import { Icon } from '../ui/Icon';
+import { ImagePreview } from '../ui/ImagePreview';
 import { PageTitle } from '../ui/PageTitle';
 import { Verification } from '../ui/account';
 import { money } from '../ui/format';
@@ -87,7 +88,7 @@ function PublicPreview({ p, platformNames, image }: { p: ProfileBody; platformNa
         <span className="tiny-label">공개 프로필 미리보기</span>
         <div className="account-preview-heading">
           <span className="avatar blue">
-            {image ? <img src={image} alt="" /> : p.activityName[0] || '나'}
+            {image ? <ImagePreview src={image} alt="프로필 사진" /> : p.activityName[0] || '나'}
             <span className="avatar-spark">✦</span>
           </span>
           <div>

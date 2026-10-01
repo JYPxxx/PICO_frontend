@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { api, unwrap, ApiError } from '../api/client';
-import { fetchDetail, mimeOf, roleIn, useLoad, usedReviews } from '../transactions/model';
+import { fetchDetail, mimeOf, roleIn, useLoad, usedReviews, type RequestResult } from '../transactions/model';
 import { Notice, useAction } from '../transactions/ui';
 import { useAppState } from '../AppState';
 import { useAuth } from '../auth/AuthContext';
@@ -43,6 +43,7 @@ export function ReviewPage() {
   const [load] = useLoad(() => fetchDetail(requestId), [requestId]);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
+  const [bookingResult, setBookingResult] = useState<RequestResult | ''>('');
   const [image, setImage] = useState<File | null>(null);
   const { pending, run } = useAction();
 
@@ -56,12 +57,12 @@ export function ReviewPage() {
 
   const { request: r, stage, review } = load.data;
   const used = !!review || r.reviewWritten || usedReviews.has(requestId);
-  if (stage !== 'completed' || roleIn(r, me, mode) !== 'user' || used)
+  if ((stage !== 'completed' && stage !== 'matching_completed') || roleIn(r, me, mode) !== 'user' || used)
     return (
       <>
         <PageTitle title="후기를 작성할 수 없어요" crumbs={[{ label: '요청 상세', to: `/requests/${requestId}` }]} />
         <div className="empty">
-          <p>{used ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).' : '거래를 완료한 이용자만 한 번 작성할 수 있어요.'}</p>
+          <p>{used ? '이미 후기를 남긴 거래예요. 거래당 후기는 한 번만 쓸 수 있어요(삭제한 뒤에도 다시 쓸 수 없어요).' : '안전거래 완료 또는 직접 거래 매칭 완료 후 이용자가 한 번 작성할 수 있어요.'}</p>
           <button type="button" className="btn secondary" onClick={() => navigate(`/requests/${requestId}`)}>
             요청 상세로
           </button>
@@ -82,7 +83,7 @@ export function ReviewPage() {
         imageKey = target.storageKey;
       }
       try {
-        await unwrap(api.POST('/api/requests/{requestId}/review', { params: { path: { requestId } }, body: { rating, comment: comment.trim() || null, imageKey: imageKey ?? null } }));
+        await unwrap(api.POST('/api/requests/{requestId}/review', { params: { path: { requestId } }, body: { rating, comment: comment.trim() || null, imageKey: imageKey ?? null, bookingResult: bookingResult || undefined } }));
       } catch (err) {
         // 완료된 거래에서만 이 화면이 열리므로, 서버 409는 이미 후기를 쓴 경우다(삭제·숨김 포함, 재작성 불가).
         if (err instanceof ApiError && err.status === 409) {
@@ -104,6 +105,16 @@ export function ReviewPage() {
           <p className="prose">{r.agentName} 도우미와 함께한 경험을 다른 이용자에게 알려 주세요.</p>
           <form id="review-form" noValidate onSubmit={submit}>
             <StarField value={rating} onChange={setRating} />
+            <label className="field">
+              <span>예매 결과 <small>선택</small></span>
+              <select value={bookingResult} onChange={(e) => setBookingResult(e.target.value as RequestResult | '')}>
+                <option value="">선택하지 않음</option>
+                <option value="SUCCESS">성공</option>
+                <option value="PARTIAL">부분 성공</option>
+                <option value="FAILURE">실패</option>
+              </select>
+              <small className="field-helper">이용자가 후기에 남기는 정보예요. 결제·정산의 확정 결과에는 영향을 주지 않아요.</small>
+            </label>
             <label className="field">
               <span>
                 후기 <small>선택</small>
@@ -143,7 +154,7 @@ export function ReviewPage() {
               </div>
               <small className="field-helper">JPG·PNG, 20MB까지. 예매 내역이나 좌석 사진을 올릴 수 있어요. 개인정보는 가려 주세요.</small>
             </div>
-            <Notice>완료한 거래의 후기에는 거래 인증 배지가 표시돼요.</Notice>
+            <Notice>{stage === 'matching_completed' ? '직접 거래는 플랫폼 매칭 내역을 바탕으로 후기를 남겨요. 예매 결과는 이용자가 기록한 정보예요.' : '완료한 안전거래에 대한 경험을 남겨 주세요.'}</Notice>
             <div className="account-form-footer">
               <button type="submit" className="btn primary" disabled={pending || !rating}>
                 {pending ? '등록 중…' : '후기 등록하기'}

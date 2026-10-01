@@ -4,7 +4,7 @@ import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { useAuth } from '../auth/AuthContext';
 import { fetchDetail, latestAgreement, myUserId, uploadAttemptFile, uploadResultFile, useLoad, type RequestResult } from '../transactions/model';
-import { EvidenceFileNames, EvidenceThumb, Field, FilePicker, Notice, Rows, TxCard, useAction, utcToLocal } from '../transactions/ui';
+import { EvidenceFileNames, Field, FilePicker, Notice, Rows, TxCard, useAction, utcToLocal } from '../transactions/ui';
 import { PageTitle } from '../ui/PageTitle';
 
 // 프로토타입 transactions.js의 attachmentPage(). 도우미 전용.
@@ -69,6 +69,7 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
   const myId = myUserId(me);
   if (myId && r.agentId !== myId) return <Navigate to={`/requests/${requestId}`} replace />;
   const a = latestAgreement(agreements);
+  if (!a?.safePayment) return <Navigate to={`/requests/${requestId}`} replace />;
   const path = { params: { path: { requestId } } };
   const latestResult = latestOf(resultEvidences);
   const scan = scanState(latestResult);
@@ -177,7 +178,6 @@ export function EvidencePage({ type }: { type: 'attempt' | 'result' }) {
           const attached = list(pick(e, 'attachments'));
           return (
             <div key={String(pick(e, 'evidenceId', 'id') ?? i)} className="tx-file-view">
-              <EvidenceThumb files={attached} />
               <div>
                 <strong>
                   {num(pick(e, 'revision')) ? `${num(pick(e, 'revision'))}차 제출` : '결과 증빙'}

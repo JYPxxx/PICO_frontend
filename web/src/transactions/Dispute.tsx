@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, unwrap } from '../api/client';
 import { list, num, pick, str, type Raw } from '../api/pick';
 import { uploadDisputeFile, useLoad } from './model';
-import { EvidenceFileNames, EvidenceThumb, Field, FilePicker, Notice, TxCard, useAction, utcToLocal } from './ui';
+import { EvidenceFileNames, Field, FilePicker, Notice, TxCard, useAction, utcToLocal } from './ui';
 
 // 분쟁 소명: 이의 제기(DISPUTED) 동안 운영팀 질문과 내 소명만 보인다. 상대방은 내 소명을 볼 수 없다.
 // GET/POST /api/requests/{requestId}/dispute/messages (첨부는 purpose=DISPUTE 업로드)
@@ -59,7 +59,6 @@ export function DisputeCard({ requestId, disputed, reloadDetail }: { requestId: 
             const question = str(pick(m, 'kind')) === 'QUESTION';
             return (
               <div key={String(num(pick(m, 'id')))} className="tx-file-view">
-                <EvidenceThumb files={attached} />
                 <div>
                   <strong>{question ? '운영팀 질문' : '내 소명'} · {utcToLocal(str(pick(m, 'createdAt')) ?? '')}</strong>
                   <small style={{ whiteSpace: 'pre-wrap' }}>{str(pick(m, 'body'))}</small>
